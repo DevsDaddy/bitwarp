@@ -10,6 +10,8 @@
  */
 /* Export Shared Types */
 export * from "./types/common";
+export * from "./types/handlers";
+export * from "./types/color";
 
 /* Export Protocol Primitives */
 export * from "./proto/transport";
