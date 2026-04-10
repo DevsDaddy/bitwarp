@@ -13,3 +13,6 @@ export * from "./types/common";
 
 /* Export Protocol Primitives */
 export * from "./proto/transport";
+
+/* Export Utils */
+export * from "./utils/format";
