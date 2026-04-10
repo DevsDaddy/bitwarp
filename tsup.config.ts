@@ -15,10 +15,10 @@ import { defineConfig } from 'tsup';
  * Configure tsup
  */
 export default defineConfig([
-  // General Library
+  // Shared Library
   {
     entry: {
-      index: 'src/index.ts',
+      index: 'src/shared/index.ts',
     },
     format: ['esm', 'cjs'],
     dts: true,
@@ -31,7 +31,7 @@ export default defineConfig([
   // Basic client in ESM/CJS (for bundlers)
   {
     entry: {
-      index: 'src/client/index.ts',
+      client: 'src/client/index.ts',
     },
     format: ['esm', 'cjs'],
     dts: true,
@@ -45,7 +45,7 @@ export default defineConfig([
       'bitwarp.iife': 'src/client/index.ts',
     },
     format: ['iife'],
-    globalName: 'BitWarp',
+    globalName: 'bitwarp',
     outExtension() {
       return { js: '.js' };
     },

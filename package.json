@@ -62,25 +62,26 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "demo:server": "tsx demo/server/index.ts",
-    "demo:client": "npx serve demo",
+    "demo:server": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' demo/server/index.ts",
+    "demo:client": "npm run build && npx vite",
     "lint": "eslint src --ext .ts",
     "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "@vitest/coverage-v8": "^1.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0",
+    "eslint": "^8.0.0",
     "ts-node": "^10.9.0",
     "tsup": "^8.0.0",
-    "eslint": "^8.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0"
+    "typescript": "^5.0.0",
+    "vite": "^8.0.8",
+    "vitest": "^1.0.0"
   },
   "dependencies": {
-    "ws": "^8.13.0"
+    "ws": "^8.0.0"
   },
   "peerDependencies": {
     "ws": "^8.0.0"

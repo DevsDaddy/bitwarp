@@ -23,7 +23,7 @@ export interface BitWarpClientOptions extends BitWarpOptions {
  */
 export class BitWarpClient {
   // Client setup
-  private readonly options: BitWarpClientOptions;
+  private readonly _options: BitWarpClientOptions;
 
   // #region basic setup and fields
   /**
@@ -31,8 +31,17 @@ export class BitWarpClient {
    * @param options {BitWarpClientOptions} Client options
    */
   constructor(options?: BitWarpClientOptions) {
-    this.options = Object.assign(BitWarpClient.defaultOptions, options);
+    this._options = Object.assign(BitWarpClient.defaultOptions, options);
   }
+
+  // #region Client Fields
+  /**
+   * Get current client options
+   * @returns {BitWarpClientOptions} Current options
+   */
+  public get options() : BitWarpClientOptions { return this._options; }
+
+  // #endregion
 
   /**
    * Return default options
