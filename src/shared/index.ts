@@ -13,6 +13,9 @@ export * from "./types/common";
 export * from "./types/handlers";
 export * from "./types/color";
 
+/* Export Debug Tools */
+export * from "./debug/logger";
+
 /* Export Protocol Primitives */
 export * from "./proto/transport";
 
