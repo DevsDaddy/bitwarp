@@ -258,4 +258,16 @@ export class Color {
     let alpha : number | null = color?.a ?? color?.A ?? color?.alpha ?? color?.Alpha ?? color?.ALPHA ?? null;
     return (alpha) ? new Color(new RGBAValue(red ?? 0, green ?? 0, blue ?? 0, alpha ?? 0)) : new Color(new RGBValue(red ?? 0, green ?? 0, blue ?? 0))
   }
+
+  // Ready-to-use colors
+  public static white() : Color { return new Color(new RGBValue(255,255,255)); }
+  public static black() : Color { return new Color(new RGBValue(0,0,0)); }
+  public static red() : Color { return new Color(new RGBAValue(255,0,0)); }
+  public static green() : Color { return new Color(new RGBAValue(0,255, 0)); }
+  public static blue() : Color { return new Color(new RGBAValue(0,0,255)); }
+  public static gray() : Color { return new Color(new RGBAValue(128,128,128)); }
+
+  public static yellow() : Color { return new Color(new RGBAValue(255,255,0)); }
+  public static cyan() : Color { return new Color(new RGBAValue(0,255,255)); }
+  public static magenta() : Color { return new Color(new RGBAValue(255,0,255)); }
 }
