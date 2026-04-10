@@ -131,6 +131,11 @@ export class Logger {
   public static head(message : string) { this.message(MessageType.head, message) }
 
   /**
+   * Clear log
+   */
+  public static clear() { console.clear() }
+
+  /**
    * Send formatted message to console
    * @param type {MessageType} Message type
    * @param message {string} Message
