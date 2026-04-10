@@ -9,8 +9,7 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { BitWarpOptions, Logger, LogLevel } from '../shared';
-import { ParseUtils } from '../shared/utils/parse';
+import { BitWarpOptions, Logger, LogLevel, ParseUtils } from '../shared';
 
 /**
  * BitWarp Server Options

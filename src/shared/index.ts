@@ -12,6 +12,7 @@
 export * from "./types/common";
 export * from "./types/handlers";
 export * from "./types/color";
+export * from "./types/event";
 
 /* Export Debug Tools */
 export * from "./debug/logger";
@@ -21,3 +22,4 @@ export * from "./proto/transport";
 
 /* Export Utils */
 export * from "./utils/format";
+export * from "./utils/parse"

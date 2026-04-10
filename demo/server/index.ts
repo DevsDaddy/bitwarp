@@ -9,7 +9,7 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { Logger } from '../../src/shared';
+import { Logger, LogLevel } from '../../src/shared';
 import { BitWarpServer, BitWarpServerOptions } from '../../src/server';
 
 /**
@@ -39,6 +39,5 @@ class Application {
   // Create application instance
   Logger.head("Welcome to demo application");
   const app = new Application(new BitWarpServer({
-
   }));
 })();
