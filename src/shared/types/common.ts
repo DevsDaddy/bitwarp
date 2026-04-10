@@ -10,6 +10,7 @@
  */
 /* Import required modules */
 import { ITransport } from '../proto/transport';
+import { LogLevel } from '../debug/logger';
 
 /**
  * BitWarp Shared Options
@@ -18,6 +19,10 @@ export interface BitWarpOptions {
   // Application options
   name ? : string;
   version ? : string;
+
+  // Debug options
+  debug ? : boolean;
+  logLevel ? : LogLevel;
 
   // Basic options
   transport ? : ITransport;

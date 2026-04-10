@@ -9,7 +9,7 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { BitWarpOptions } from '../shared';
+import { BitWarpOptions, Logger, LogLevel } from '../shared';
 
 /**
  * BitWarp Client Options
@@ -32,6 +32,10 @@ export class BitWarpClient {
    */
   constructor(options?: BitWarpClientOptions) {
     this._options = Object.assign(BitWarpClient.defaultOptions, options);
+
+    // Initial checks
+    if(!this.options.debug) Logger.toggle(false);
+    if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
   }
 
   // #region Client Fields
@@ -49,7 +53,10 @@ export class BitWarpClient {
    */
   public static get defaultOptions() : BitWarpClientOptions {
     return {
-
+      name: "BitWarp Client",
+      version: "1.0.0",
+      debug: true,
+      logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
     }
   }
   // #endregion

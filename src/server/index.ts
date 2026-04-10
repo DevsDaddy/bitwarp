@@ -9,7 +9,8 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { BitWarpOptions } from '../shared';
+import { BitWarpOptions, Logger, LogLevel } from '../shared';
+import { ParseUtils } from '../shared/utils/parse';
 
 /**
  * BitWarp Server Options
@@ -32,6 +33,10 @@ export class BitWarpServer {
    */
   constructor(options?: BitWarpServerOptions) {
     this._options = Object.assign(BitWarpServer.defaultOptions, options);
+
+    // Initial checks
+    if(!this.options.debug) Logger.toggle(false);
+    if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
   }
 
   // #region Server Fields
@@ -49,7 +54,10 @@ export class BitWarpServer {
    */
   public static get defaultOptions() : BitWarpServerOptions {
     return {
-
+      name : process?.env?.APPLICATION_NAME ?? "BitWarp Server",
+      version : process?.env?.APPLICATION_VERSION ?? "1.0.0",
+      debug : ParseUtils.bool(process?.env?.DEBUG_MODE ?? "true"),
+      logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
     }
   }
   // #endregion

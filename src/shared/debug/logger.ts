@@ -28,7 +28,7 @@ enum MessageType {
  * Log level
  */
 export enum LogLevel {
-  All = 0,
+  None = 0,
   Log = 1 << 0,
   Info = 1 << 1,
   Warning = 1 << 2,
@@ -53,7 +53,7 @@ interface FormatOptions {
 export class Logger {
   // Logger settings
   private static _isEnabled : boolean = true;
-  private static _logLevel : LogLevel = LogLevel.All;
+  private static _logLevel : LogLevel = LogLevel.Info | LogLevel.Warning | LogLevel.Log | LogLevel.Error | LogLevel.Success;
   private static _logFormats : Map<MessageType,FormatOptions> = new Map<MessageType,FormatOptions>([
     [ MessageType.log, { plateColor: Color.black(), plateBackgroundColor: Color.white(), upperCase: false }],
     [ MessageType.info, { plateColor: Color.white(), plateBackgroundColor: Color.fromString("#0a96ff"), fontColor: Color.fromString("#0a96ff"), upperCase: false }],
@@ -75,8 +75,16 @@ export class Logger {
    * Set current log level
    * @param level {LogLevel} Log level
    */
-  public static setLevel(level : LogLevel) {
+  public static set level(level : LogLevel) {
     this._logLevel = level;
+  }
+
+  /**
+   * Get current log level
+   * @returns {LogLevel} Current log level
+   */
+  public static get level() : LogLevel {
+    return this._logLevel;
   }
 
   /**
@@ -148,7 +156,6 @@ export class Logger {
 
     // Bit Levels
     let canWrite = false;
-    let isAll = (this._logLevel & LogLevel.All) === LogLevel.All;
     let isLog = (this._logLevel & LogLevel.Log) === LogLevel.Log;
     let isInfo = (this._logLevel & LogLevel.Info) === LogLevel.Info;
     let isWarning = (this._logLevel & LogLevel.Warning) === LogLevel.Warning;
@@ -158,27 +165,27 @@ export class Logger {
     // Switch message type
     switch(type) {
       case MessageType.log : {
-        if(isAll || isLog) canWrite = true;
+        if(isLog) canWrite = true;
         break;
       }
       case MessageType.info : {
-        if(isAll || isInfo) canWrite = true;
+        if(isInfo) canWrite = true;
         break;
       }
       case MessageType.warn : {
-        if(isAll || isWarning) canWrite = true;
+        if(isWarning) canWrite = true;
         break;
       }
       case MessageType.error : {
-        if(isAll || isError) canWrite = true;
+        if(isError) canWrite = true;
         break;
       }
       case MessageType.success : {
-        if(isAll || isSuccess) canWrite = true;
+        if(isSuccess) canWrite = true;
         break;
       }
       case MessageType.head : {
-        if(isAll || isLog || isInfo || isWarning || isError || isSuccess) canWrite = true;
+        if(isLog || isInfo || isWarning || isError || isSuccess) canWrite = true;
         break;
       }
       default: throw new Error(`Failed to write logger message. Unknown type ${type}`);
