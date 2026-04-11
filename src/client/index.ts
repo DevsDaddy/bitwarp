@@ -9,7 +9,7 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { BitWarpOptions, Logger, LogLevel } from '../shared';
+import { BaseEvent, BitWarpOptions, ErrorHandler, Logger, LogLevel } from '../shared';
 
 /**
  * BitWarp Client Options
@@ -24,6 +24,10 @@ export interface BitWarpClientOptions extends BitWarpOptions {
 export class BitWarpClient {
   // Client setup
   private readonly _options: BitWarpClientOptions;
+
+  // Client events
+  public readonly onInitialized : BaseEvent = new BaseEvent();
+  public readonly onInitializationError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
 
   // #region basic setup and fields
   /**
