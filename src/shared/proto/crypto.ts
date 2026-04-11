@@ -8,3 +8,7 @@
  * @license               MIT
  * @updated               10.04.2026
  */
+/**
+ * Hash Provider
+ */
+export interface IHashProvider {}

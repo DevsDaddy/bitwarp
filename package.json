@@ -82,7 +82,10 @@
     "dotenv": "^17.4.1"
   },
   "dependencies": {
-    "ws": "^8.0.0"
+    "ws": "^8.0.0",
+    "bweave": "^1.0.0",
+    "flash-buffer": "^1.0.0",
+    "quarkdash": "^1.0.7"
   },
   "peerDependencies": {
     "ws": "^8.0.0"

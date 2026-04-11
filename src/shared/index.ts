@@ -23,6 +23,7 @@ export * from "./debug/performance";
 export * from "./proto/transport";
 export * from "./proto/compression";
 //export * from "./proto/packet";
+export * from "./proto/crypto";
 export * from "./proto/transport";
 //export * from "./proto/types";
 
