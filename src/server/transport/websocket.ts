@@ -12,19 +12,20 @@
 import {
   ITransport,
   ITransportOptions,
-  Logger,
+  Logger, ParseUtils,
   Transport,
   TransportCloseCode,
   TransportError,
   TransportErrorHandler
 } from '../../shared';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import 'dotenv/config';
 
 /**
  * WebSocket based server transport options
  */
 export interface WebSocketServerTransportOptions extends ITransportOptions {
+  // WebSocket Server Options
   allowSynchronousEvents : boolean;
   autoPong : boolean;
   backlog ? : number;
@@ -32,12 +33,21 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
   maxPayload : number;
   noServer : boolean;
   skipUTF8Validation : boolean;
+
+  // Heartbeat options
+  heartbeat : boolean;
+  heartbeatTimer : number;
+  heartbeatTimeout : number;
 }
 
 /**
  * WebSocket based server transport
  */
 export class WebSocketServerTransport extends Transport implements ITransport {
+  // Connections Management
+  private _heartbeatTimer ? : NodeJS.Timeout;
+  private _rawConnections : Set<WebSocket> = new Set();
+
   /**
    * Create WebSocket based server transport
    * @param options {WebSocketServerTransportOptions} Options
@@ -47,6 +57,10 @@ export class WebSocketServerTransport extends Transport implements ITransport {
     let currentOptions : WebSocketServerTransportOptions = (options) ? {...WebSocketServerTransport.defaultOptions, ...options} : WebSocketServerTransport.defaultOptions;
     super(currentOptions);
   }
+
+  // Override transport getters
+  public override get options(): WebSocketServerTransportOptions { return super.options as WebSocketServerTransportOptions; }
+  public override get connector () : WebSocketServer { return super.connector as WebSocketServer; }
 
   /**
    * Connect
@@ -62,8 +76,9 @@ export class WebSocketServerTransport extends Transport implements ITransport {
         if(self.isConnected || self.connector) await self.dispose();
 
         // Create connector
+        self.stopHeartbeat();
         self.onBeforeConnected.invoke();
-        let currentOptions : WebSocketServerTransportOptions = self.options as WebSocketServerTransportOptions;
+        let currentOptions = self.options;
         let hostUrl = `${currentOptions.protocol}${currentOptions.host}`;
         let connector = new WebSocketServer({
           host: hostUrl,
@@ -80,10 +95,11 @@ export class WebSocketServerTransport extends Transport implements ITransport {
         });
 
         // Subscribe to connector events
-        connector.addListener("connection", (client) => {
-          // TODO: Client connection
+        connector.addListener("connection", (client : WebSocket) => {
+          self.handleRawConnection(client);
         });
         connector.addListener("close", () => {
+          self.stopHeartbeat();
           self.dispose().then(()=>{
             self.onDisconnected.invoke(TransportCloseCode.ClosedByServer);
           })
@@ -112,10 +128,10 @@ export class WebSocketServerTransport extends Transport implements ITransport {
           Logger.success(`WebSocket Transport server is started at: ${self.options.host}:${self.options.port}`);
           self.isConnected = true;
           self.onConnected.invoke(connector);
+          self.startHeartbeat();
           resolve(connector);
         });
         connector.addListener("wsClientError", (error) => {
-          // TODO: Process client error
           let err = new TransportErrorHandler(`WebSocket Server transport error. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ClientException);
           self.onError.invoke(err);
           resolve(err);
@@ -224,24 +240,79 @@ export class WebSocketServerTransport extends Transport implements ITransport {
   }
 
   /**
+   * Start transport heartbeat
+   * @private
+   */
+  private startHeartbeat(): void {
+    let self = this;
+    if(!self.options.heartbeat) return;
+    if(self._heartbeatTimer) self.stopHeartbeat();
+    self._heartbeatTimer = setInterval(async ()=> {
+
+    }, self.options.heartbeatTimer);
+  }
+
+  /**
+   * Stop transport heartbeat
+   * @private
+   */
+  private stopHeartbeat(): void {
+    let self = this;
+    if(!self._heartbeatTimer || !self.options.heartbeat) return;
+    clearInterval(self._heartbeatTimer);
+    self._heartbeatTimer = undefined;
+  }
+
+  /**
+   * Handle raw client connection
+   * @param client {WebSocket} client
+   * @private
+   */
+  private handleRawConnection(client : WebSocket) {
+    let self = this;
+
+    // Has raw connection - remove
+    if(self._rawConnections.has(client)) {
+      self._rawConnections.delete(client);
+    }
+
+    // Process raw connection to peer
+    client.on("close", ()=>{
+      // Remove client from raw connections
+      if(self._rawConnections.has(client)) {
+        self._rawConnections.delete(client);
+      }
+    })
+    self._rawConnections.add(client);
+  }
+
+  /**
    * Default options
    */
   public static defaultOptions: WebSocketServerTransportOptions = {
-    protocol: "",
-    host: "localhost",
-    port: 8080,
-    path: "/",
+    // Basic Options
+    protocol: process?.env?.TRANSPORT_PROTO ?? "",
+    host: process?.env?.TRANSPORT_HOST ?? "localhost",
+    port: parseInt(process?.env?.TRANSPORT_PORT ?? "8080"),
+    path: process?.env?.TRANSPORT_PATH ?? "/",
 
+    // Websocket server options
     allowSynchronousEvents: true,
     autoPong: true,
     maxPayload : 104857600,
     noServer : false,
     skipUTF8Validation: false,
 
+    // Reconnect options
     reconnectOptions: {
-      autoReconnect : true,
-      maxAttempts: 5,
-      delay: 5000
-    }
+      autoReconnect : ParseUtils.bool(process?.env?.TRANSPORT_RECONNECT ?? "true"),
+      maxAttempts: parseInt(process?.env?.TRANSPORT_RECONNECT_DELAY ?? "5"),
+      delay: parseInt(process?.env?.TRANSPORT_RECONNECT_ATTEMPTS ?? "5000")
+    },
+
+    // Heartbeat options
+    heartbeat: true,
+    heartbeatTimer: 30000,
+    heartbeatTimeout: 5000
   }
 }

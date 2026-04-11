@@ -94,19 +94,17 @@ export class BitWarpClient {
     }
 
     // Start transport
-    self.transport.onConnected.removeAllListeners();
+    self.unsubscribeAllTransport();
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Client is successfully started`);
       self.onInitialized.invoke();
 
       // TODO: Handshake with server
     });
-    self.transport.onError.removeAllListeners();
     self.transport.onError.addListener((error) => {
       Logger.error(`BitWarp Client Error: ${error?.message ?? "Unknown error"}`);
       self.onInitializationError.invoke(new ErrorHandler(error.message, error?.stack ?? null, ErrorType.ClientException));
     });
-    self.transport.onDisconnected.removeAllListeners();
     self.transport.onDisconnected.addListener((reason) => {
       if(reason instanceof TransportErrorHandler) {
         Logger.error(`BitWarp Client Stop Error: ${reason?.message ?? "Unknown error"}`);
@@ -138,8 +136,20 @@ export class BitWarpClient {
   private dispose() {
     let self = this;
     self._isConnected = false;
+    self.unsubscribeAllTransport();
     self.transport.updateConnector(undefined);
     // TODO: Cleanup server
+  }
+
+  /**
+   * Unsubscribe all transport events
+   * @private
+   */
+  private unsubscribeAllTransport(){
+    let self = this;
+    self.transport.onConnected.removeAllListeners();
+    self.transport.onError.removeAllListeners();
+    self.transport.onDisconnected.removeAllListeners();
   }
   // #endregion
 

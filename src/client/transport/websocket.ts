@@ -41,6 +41,10 @@ export class WebSocketClientTransport extends Transport implements ITransport {
     super(currentOptions);
   }
 
+  // Override transport getters
+  public override get options(): WebSocketClientTransportOptions { return super.options as WebSocketClientTransportOptions; }
+  public override get connector () : WebSocket { return super.connector as WebSocket; }
+
   /**
    * Connect
    * @returns {Promise<any|TransportErrorHandler>} Returns connector instance or Transport Error Handler
@@ -56,7 +60,7 @@ export class WebSocketClientTransport extends Transport implements ITransport {
 
         // Create connector
         self.onBeforeConnected.invoke();
-        let currentOptions : WebSocketClientTransportOptions = self.options as WebSocketClientTransportOptions;
+        let currentOptions = self.options;
         let url : string = `${currentOptions.protocol}${currentOptions.host}:${currentOptions.port}${currentOptions.path}`;
         let connector = new WebSocket(url);
 
@@ -66,8 +70,6 @@ export class WebSocketClientTransport extends Transport implements ITransport {
           self.isConnected = true;
           self.onConnected.invoke(connector);
           resolve(connector);
-
-          // TODO: Handshake
         });
         connector.addEventListener("close", async (event) => {
           // Websocket code
@@ -89,9 +91,9 @@ export class WebSocketClientTransport extends Transport implements ITransport {
           }
 
           // Is Normal close
-          /*self.dispose().then(()=>{
+          self.dispose().then(()=>{
             self.onDisconnected.invoke((wsCode === 0) ? TransportCloseCode.ClosedByClient : TransportCloseCode.ClosedByServer);
-          })*/
+          })
         });
         connector.addEventListener("error", async (event) => {
           self.onError.invoke(new TransportErrorHandler(`WebSocket Transport Client Error`, event));
