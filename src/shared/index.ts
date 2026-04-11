@@ -16,9 +16,21 @@ export * from "./types/event";
 
 /* Export Debug Tools */
 export * from "./debug/logger";
+export * from "./debug/analyzer";
+export * from "./debug/performance";
 
 /* Export Protocol Primitives */
 export * from "./proto/transport";
+export * from "./proto/compression";
+//export * from "./proto/packet";
+export * from "./proto/transport";
+//export * from "./proto/types";
+
+/* Export Crypto Providers */
+//export * from "./crypto";
+
+/* Export Compression Providers */
+//export * from "./compression";
 
 /* Export Utils */
 export * from "./utils/format";

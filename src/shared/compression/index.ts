@@ -1,5 +1,5 @@
 /**
- * BitWarp Networking Proto types
+ * BitWarp Networking Crypto Providers
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
