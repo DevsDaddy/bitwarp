@@ -125,6 +125,7 @@ export class BitWarpServer {
    */
   public async stop(): Promise<void> {
     await this.transport.disconnect(TransportCloseCode.ClosedByServer);
+    await this.transport.dispose();
   }
 
   /**
