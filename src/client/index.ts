@@ -9,7 +9,8 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { BaseEvent, BitWarpOptions, ErrorHandler, Logger, LogLevel } from '../shared';
+import { BaseEvent, BitWarpOptions, ErrorHandler, ITransport, Logger, LogLevel } from '../shared';
+import { WebSocketClientTransport } from './transport/websocket';
 
 /**
  * BitWarp Client Options
@@ -24,6 +25,7 @@ export interface BitWarpClientOptions extends BitWarpOptions {
 export class BitWarpClient {
   // Client setup
   private readonly _options: BitWarpClientOptions;
+  private readonly _transport : ITransport;
 
   // Client events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -40,6 +42,9 @@ export class BitWarpClient {
     // Initial checks
     if(!this.options.debug) Logger.toggle(false);
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
+
+    // Create transport is not defined
+    this._transport = (this.options.transport) ? this.options.transport : new WebSocketClientTransport();
   }
 
   // #region Client Fields
@@ -48,7 +53,7 @@ export class BitWarpClient {
    * @returns {BitWarpClientOptions} Current options
    */
   public get options() : BitWarpClientOptions { return this._options; }
-
+  public get transport (): ITransport { return this._transport };
   // #endregion
 
   /**
@@ -60,7 +65,7 @@ export class BitWarpClient {
       name: "BitWarp Client",
       version: "1.0.0",
       debug: true,
-      logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
+      logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error
     }
   }
   // #endregion

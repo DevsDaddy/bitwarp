@@ -51,7 +51,7 @@ export class ErrorHandler {
     return {
       message : this.message,
       stack : this.stack,
-      type : ErrorType.SystemException
+      type : this.type
     }
   }
 
