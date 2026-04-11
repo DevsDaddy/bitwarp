@@ -147,6 +147,9 @@ export class WebSocketServerTransport extends Transport implements ITransport {
 
         // Close socket connection
         connection.close();
+        setTimeout(()=>{
+          resolve(closeCode);
+        }, 2000);
       }catch(error : any) {
         resolve(new TransportErrorHandler(`Failed to disconnect WebSocket Server transport with code: ${closeCode}. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ConnectionFailed));
       }

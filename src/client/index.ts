@@ -30,6 +30,8 @@ export class BitWarpClient {
   // Client events
   public readonly onInitialized : BaseEvent = new BaseEvent();
   public readonly onInitializationError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
+  public readonly onStopped : BaseEvent = new BaseEvent();
+  public readonly onError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
 
   // #region basic setup and fields
   /**

@@ -41,8 +41,13 @@ describe('BitWrap Server Tests', () => {
       } as WebSocketServerTransportOptions)
     });
   });
+  beforeEach(()=>{
+    server.onInitialized.removeAllListeners();
+    server.onError.removeAllListeners();
+    server.onInitializationError.removeAllListeners();
+    server.onStopped.removeAllListeners();
+  })
 
-  // Server Tests
   it("Server starting test", async () => {
     // Start Server
     let startServer : boolean = await new Promise(async (resolve) => {
@@ -58,5 +63,19 @@ describe('BitWrap Server Tests', () => {
     // Check Initialization Status
     expect(startServer).to.be.true;
   });
+  it("Server restart test", async () => {
+    let reconnectServer : boolean = await new Promise(async (resolve) => {
+      server.onInitialized.addListener(() => {
+        resolve(true);
+      });
+      server.onInitializationError.addListener(() => {
+        resolve(false);
+      });
+      await server.stop();
+      await server.start();
+    });
 
+    // Check Initialization Status
+    expect(reconnectServer).to.be.true;
+  })
 });
