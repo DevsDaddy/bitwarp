@@ -9,7 +9,7 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { Logger, LogLevel } from '../../src/shared';
+import { Logger } from '../../src/shared';
 import { BitWarpServer, BitWarpServerOptions } from '../../src/server';
 
 /**
