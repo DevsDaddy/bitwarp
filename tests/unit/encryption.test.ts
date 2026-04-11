@@ -11,6 +11,8 @@
 /* Import required modules */
 import { describe, it, expect } from 'vitest';
 import { SHA256, SHA512, MD5, Shake256 } from '../../src/shared/crypto';
+import { CryptoUtils } from '../../src/shared/crypto/utils';
+import { Logger } from '../../src/shared';
 
 /**
  * Describe tests
@@ -37,4 +39,12 @@ describe('BitWrap Encryption Module Tests', () => {
     const output = MD5.hash(input);
     expect(output.length).toBe(32);
   })
+
+  // Crypto utils
+  it('Object signature test', () => {
+    const object = { name: "Alice", age: 25 };
+    const timestamp = Date.now();
+    const signature = CryptoUtils.getObjectSignature(object, timestamp);
+    expect(signature.length).toBe(128);
+  });
 });
