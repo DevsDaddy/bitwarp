@@ -62,6 +62,7 @@ export class WebSocketServerTransport extends Transport implements ITransport {
         if(self.isConnected || self.connector) await self.dispose();
 
         // Create connector
+        self.onBeforeConnected.invoke();
         let currentOptions : WebSocketServerTransportOptions = self.options as WebSocketServerTransportOptions;
         let hostUrl = `${currentOptions.protocol}${currentOptions.host}`;
         let connector = new WebSocketServer({
@@ -122,7 +123,6 @@ export class WebSocketServerTransport extends Transport implements ITransport {
 
         // Update connector
         self.updateConnector(connector);
-        self.onBeforeConnected.invoke();
       }catch(error : any) {
         resolve(new TransportErrorHandler(`Failed to connect WebSocket Server transport. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ConnectionFailed));
       }

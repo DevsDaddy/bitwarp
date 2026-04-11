@@ -17,6 +17,9 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: 'demo/client',
   server: {
+    watch: {
+      usePolling: true,
+    },
     port: 3000,
     open: true,
   },
