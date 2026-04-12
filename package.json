@@ -1,0 +1,103 @@
+{
+  "name": "bitwarp",
+  "version": "1.0.0",
+  "description": "BitWarp - a high-performance, next-generation reactive network library for organizing the operation of real-time applications based on a binary protocol with support for hybrid compression and encryption, written in TypeScript.",
+  "keywords": [
+    "bitwarp",
+    "reactive",
+    "networking",
+    "library",
+    "realtime",
+    "protocol",
+    "binary",
+    "hybrid",
+    "compression",
+    "encryption",
+    "peers",
+    "typescript"
+  ],
+  "homepage": "https://github.com/DevsDaddy/bitwarp#readme",
+  "bugs": {
+    "url": "https://github.com/DevsDaddy/bitwarp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DevsDaddy/bitwarp.git"
+  },
+  "license": "MIT",
+  "author": "Elijah Rastorguev",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./client": {
+      "browser": "./dist/client.browser.js",
+      "node": "./dist/client.node.js",
+      "default": "./dist/client.node.js"
+    },
+    "./server": {
+      "node": "./dist/server.js",
+      "default": "./dist/server.js"
+    },
+    "./iife": "./dist/bitwarp.iife.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "update-docs": "ts-node docutil.ts",
+    "build": "npm run update-docs && tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "demo:server": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' demo/server/index.ts",
+    "demo:client": "npm run build && npx vite",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.0.0",
+    "ts-morph": "^27.0.2",
+    "ts-node": "^10.9.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^8.0.8",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {
+    "bweave": "^1.0.0",
+    "dotenv": "^17.4.1",
+    "flash-buffer": "^1.0.0",
+    "quarkdash": "^1.0.8",
+    "ws": "^8.0.0"
+  },
+  "peerDependencies": {
+    "ws": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

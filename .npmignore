@@ -1,0 +1,11 @@
+src/
+tests/
+demo/
+vitest.config.ts
+vite.config.ts
+.gitignore
+.github/
+*.log
+.DS_Store
+coverage/
+.env
