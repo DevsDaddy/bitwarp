@@ -22,6 +22,7 @@ export * from "./debug/performance";
 /* Export Protocol Primitives */
 export * from "./proto/transport";
 export * from "./proto/compression";
+export * from "./proto/peer";
 //export * from "./proto/packet";
 export * from "./proto/crypto";
 export * from "./proto/transport";
