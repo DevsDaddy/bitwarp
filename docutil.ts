@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1001
+ * @build                 1004
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -16,11 +16,7 @@ import { execSync } from "child_process";
  */
 async function updateJSDocInChangedFiles() {
   // Get all changed files via GIT
-  const changedFiles = execSync("git diff --name-only HEAD~1 HEAD")
-    .toString()
-    .trim()
-    .split("\n")
-    .filter(file => file.endsWith(".ts"));
+  const changedFiles = execSync("git diff --name-only").toString().trim().split("\n").filter(file => file.endsWith(".ts"));
 
   if (changedFiles.length === 0) {
     console.log("No changes found in project.");
