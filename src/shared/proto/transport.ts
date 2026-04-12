@@ -11,7 +11,7 @@
 /* Import required modules */
 import { BaseEvent } from '../types/event';
 import { ErrorHandler } from '../types/handlers';
-import { ClientConnection, ClientDisconnect } from './peer';
+import { ClientConnection, ClientData, ClientDisconnect } from './peer';
 
 /**
  * Basic Transport Errors
@@ -173,8 +173,15 @@ export interface ITransport {
  * Server Transport
  */
 export interface IServerTransport extends ITransport{
+  // Server Transport Events
   onClientConnected : BaseEvent<ClientConnection>;
   onClientDisconnected : BaseEvent<ClientDisconnect>;
+  onClientDataReceived : BaseEvent<ClientData>;
+  onClientDataSend : BaseEvent<ClientData>;
+
+  // Server transport methods
+  send(data : Uint8Array, to : ClientConnection | Set<ClientConnection>) : true | TransportErrorHandler;
+  sendById(data : Uint8Array, to : string | Set<string>) : true | TransportErrorHandler;
 }
 
 /**

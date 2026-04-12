@@ -11,7 +11,9 @@
 /* Import required modules */
 import {
   BaseEvent,
+  BinaryConverter,
   ClientConnection,
+  ClientData,
   ClientDisconnect,
   ClientDisconnectCode,
   IServerTransport,
@@ -53,11 +55,14 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
 export class WebSocketServerTransport extends Transport implements ITransport, IServerTransport {
   // Connections Management
   private _connections : Map<string, ClientConnection> = new Map();
+  private _resendQueue : Queue
   private _heartbeatTimer ? : NodeJS.Timeout;
 
   // Server transport events
   public onClientConnected : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
   public onClientDisconnected : BaseEvent<ClientDisconnect> = new BaseEvent<ClientDisconnect>();
+  public onClientDataReceived : BaseEvent<ClientData> = new BaseEvent<ClientData>();
+  public onClientDataSend : BaseEvent<ClientData> = new BaseEvent<ClientData>();
 
   /**
    * Create WebSocket based server transport
@@ -251,6 +256,76 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
   }
 
   /**
+   * Send data for connection
+   * @param data {Uint8Array} Raw data
+   * @param to {ClientConnection|Set<ClientConnection>} Client connection or set of client connections
+   */
+  public send(data: Uint8Array, to: ClientConnection | Set<ClientConnection>) : true | TransportErrorHandler {
+    let self = this;
+    if(data.length === 0) {
+      return new TransportErrorHandler(`Failed to send data via transport. Data is empty.`, null, TransportError.CommandException);
+    }
+
+    /** Try send data using connection */
+    function trySend(connection : ClientConnection) {
+      let socket = connection.connector as WebSocket;
+      if(!socket || socket.readyState !== WebSocket.OPEN) {
+        self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
+        return new TransportErrorHandler(`Failed to send data via transport. Connection ${connection.id} socket is dead.`, null, TransportError.ConnectionFailed);
+      }
+
+      // Send data to client
+      socket.send(data);
+      self.onClientDataSend.invoke({ connection: connection, data: data });
+      return true;
+    }
+
+    // Single client
+    if(!(to instanceof Set)) return trySend(to as ClientConnection);
+
+    // Multiple clients
+    to.forEach((connection : ClientConnection) => {
+      trySend(connection);
+    })
+    return true;
+  }
+
+  /**
+   * Send data by ID
+   * @param data {Uint8Array} Raw data
+   * @param to {string|Set<string>} Connection ID or Set of IDs
+   * @returns {true|TransportErrorHandler} Returns true or Transport Error Handler
+   */
+  public sendById(data : Uint8Array, to: string | Set<string>) : true | TransportErrorHandler {
+    let self = this;
+    let recipients: Set<ClientConnection> = new Set();
+
+    // Single connection
+    if (typeof to === "string") {
+      let connection = self._connections.get(to);
+      if (!connection || !connection.isAlive) {
+        // TODO: Resend Queue
+        return new TransportErrorHandler(`Failed to send data for ${to}. Connection is not alive or not found.`, null, TransportError.ConnectionFailed);
+      }
+
+      return this.send(data, connection);
+    }
+
+    // For each connection ids
+    to.forEach((connectionId) => {
+      let connection = self._connections.get(connectionId);
+      if(connection && connection.isAlive) {
+        if(!recipients.has(connection)) recipients.add(connection);
+      }else{
+        // TODO: Resend Queue
+      }
+    });
+
+    // Send to all available
+    return this.send(data, recipients);
+  }
+
+  /**
    * Start transport heartbeat
    * @private
    */
@@ -410,6 +485,13 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
    * @private
    */
   private handleMessage(connection : ClientConnection, data : string | Buffer | ArrayBuffer | Buffer[]) : void {
+    this.onClientDataReceived.invoke({
+      connection: connection,
+      data: BinaryConverter.toUint8Array(data as any)
+    })
+  }
+
+  private resendQueue(){
 
   }
 

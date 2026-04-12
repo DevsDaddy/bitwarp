@@ -40,6 +40,14 @@ export interface ClientDisconnect {
 }
 
 /**
+ * Client Data
+ */
+export interface ClientData {
+  connection : ClientConnection;
+  data : Uint8Array;
+}
+
+/**
  *  BitWarp Peer
  */
 export interface Peer {

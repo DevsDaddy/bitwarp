@@ -12,169 +12,213 @@
  * Binary converter
  */
 export class BinaryConverter {
-  // Converter constants
-  private static HEXChars: string = "0123456789abcdef";
+  // Reusable text encoders / decoders
+  private static textEncoder: TextEncoder | null = null;
+  private static textDecoder: TextDecoder | null = null;
+  private static readonly HEX_LOOKUP: string[] = Array.from({ length: 256 }, (_, i) =>
+    i.toString(16).padStart(2, '0')
+  );
 
   /**
-   * Convert raw text to bytes array
-   * @param text {string} raw string
-   * @returns {any} bytes array
+   * Covert to Uint8 Array
+   * @param input {string|ArrayBuffer|Uint8Array|Buffer|Buffer[]} Input
+   * @param copy {boolean} Copy values
+   * @returns {Uint8Array} Converted value
    */
-  public static textToBytes(text: string): any {
-    let self = this;
-    let result = [],
-      i = 0;
-    text = encodeURI(text);
-    while (i < text.length) {
-      let c = text.charCodeAt(i++);
+  public static toUint8Array(
+    input: string | ArrayBuffer | Uint8Array | Buffer | Buffer[],
+    copy = false
+  ): Uint8Array {
+    // string -> Uint8Array (UTF-8)
+    if (typeof input === 'string') {
+      return this.getTextEncoder().encode(input);
+    }
 
-      // if it is a % sign, encode the following 2 bytes as a hex value
-      if (c === 37) {
-        result.push(parseInt(text.substr(i, 2), 16));
-        i += 2;
+    // ArrayBuffer -> Uint8Array (view)
+    if (input instanceof ArrayBuffer) {
+      return copy ? new Uint8Array(input.slice(0)) : new Uint8Array(input);
+    }
 
-        // otherwise, just the actual byte
-      } else {
-        result.push(c);
+    // Uint8Array
+    if (input instanceof Uint8Array) {
+      if (copy) {
+        const copyArr = new Uint8Array(input.length);
+        copyArr.set(input);
+        return copyArr;
       }
+      return input;
     }
 
-    return self.coerceArray(result);
-  }
-
-  /**
-   * Convert bytes array to raw string
-   * @param bytes {number[]|Uint8Array} Bytes array
-   * @returns {string} raw string
-   */
-  public static bytesToText(bytes: number[] | Uint8Array): string {
-    let result = [],
-      i = 0;
-
-    while (i < bytes.length) {
-      let c = bytes[i];
-
-      if (c < 128) {
-        result.push(String.fromCharCode(c));
-        i++;
-      } else if (c > 191 && c < 224) {
-        result.push(
-          String.fromCharCode(((c & 0x1f) << 6) | (bytes[i + 1] & 0x3f))
-        );
-        i += 2;
-      } else {
-        result.push(
-          String.fromCharCode(
-            ((c & 0x0f) << 12) |
-            ((bytes[i + 1] & 0x3f) << 6) |
-            (bytes[i + 2] & 0x3f)
-          )
-        );
-        i += 3;
+    // Buffer[] (Node.js)
+    if (Array.isArray(input)) {
+      if (!this.isBufferAvailable()) {
+        throw new TypeError('Buffer[] does\'t support outside Node.js');
       }
+
+      // Use native Buffer.concat for performance
+      const totalLength = input.reduce((sum, buf) => sum + buf.length, 0);
+      // Buffer already Uint8Array, returns
+      return Buffer.concat(input, totalLength);
     }
 
-    return result.join("");
+    // Unknown type
+    throw new TypeError(`Unsupported type for: ${typeof input}`);
   }
 
   /**
-   * Convert HEX string to bytes array
-   * @param text {string} HEX string
-   * @returns {number[]} bytes array
-   * @constructor
+   * Convert binary to string
+   * @param input {Uint8Array} Binary array
+   * @returns {string} UTF-8 string
    */
-  public static HEXToBytes(text: string): number[] {
-    let result = [];
-    for (let i = 0; i < text.length; i += 2) {
-      result.push(parseInt(text.substr(i, 2), 16));
-    }
-
-    return result;
+  public static toString(input: Uint8Array): string {
+    return this.getTextDecoder().decode(input);
   }
 
   /**
-   * Convert bytes array to HEX string
-   * @param bytes {number[]|Uint8Array} Bytes array
+   * Convert to array buffer
+   * @param input {Uint8Array} Input data
+   * @param copy {boolean} Copy data or not
+   * @returns {ArrayBuffer} Result buffer
+   */
+  public static toArrayBuffer(input: Uint8Array, copy = false): ArrayBuffer {
+    if (copy) {
+      // Copy data in new ArrayBuffer
+      // @ts-ignore
+      return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    }
+    if (input.byteOffset === 0 && input.byteLength === input.buffer.byteLength) {
+      // @ts-ignore
+      return input.buffer;
+    }
+    // @ts-ignore
+    return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+  }
+
+  /**
+   * Convert to buffer
+   * @param input {Uint8Array} Input binary array
+   * @returns {Buffer} Returns buffer
+   */
+  public static toBuffer(input: Uint8Array): Buffer {
+    if (!this.isBufferAvailable()) {
+      throw new Error('Buffer available only in Node.js');
+    }
+    // Buffer.from without copy, if available (uses ArrayBuffer)
+    return Buffer.from(input.buffer, input.byteOffset, input.byteLength);
+  }
+
+  /**
+   * To buffer array
+   * @param input {Uint8Array} Binary array
+   * @param chunkSize {number} chunk size
+   * @returns {Buffer[]} Array buffer
+   */
+  public static toBufferArray(input: Uint8Array, chunkSize?: number): Buffer[] {
+    if (!this.isBufferAvailable()) {
+      throw new Error('Buffer available only in Node.js');
+    }
+
+    if (chunkSize === undefined || chunkSize <= 0) {
+      return [this.toBuffer(input)];
+    }
+
+    const buffers: Buffer[] = [];
+    let offset = 0;
+    while (offset < input.length) {
+      const end = Math.min(offset + chunkSize, input.length);
+      const slice = input.subarray(offset, end);
+      buffers.push(this.toBuffer(slice));
+      offset = end;
+    }
+    return buffers;
+  }
+
+  /**
+   * Convert Binary Array to HEX String
+   * @param input {Uint8Array} Binary array
+   * @param separator {string} separator (for example " " or "-")
    * @returns {string} HEX String
    */
-  public static bytesToHEX(bytes: number[] | Uint8Array): string {
-    let self = this;
-    let result = [];
-    for (let i = 0; i < bytes.length; i++) {
-      let v = bytes[i];
-      result.push(self.HEXChars[(v & 0xf0) >> 4] + self.HEXChars[v & 0x0f]);
-    }
-    return result.join("");
-  }
+  public static toHex(input: Uint8Array, separator = ''): string {
+    const len = input.length;
+    if (len === 0) return '';
 
-  // Internal tools
-  /**
-   * Check if value is int
-   * @param value {any} Value
-   * @returns {boolean}
-   * @protected
-   */
-  private static checkInt(value: any): boolean {
-    return parseInt(value) === value;
-  }
+    const lookup = this.HEX_LOOKUP;
+    let result = '';
 
-  /**
-   * Check Ints inside array
-   * @param arrayish {any} Array
-   * @returns {boolean} Any value is integer and between 0 and 255
-   * @protected
-   */
-  private static checkInts(arrayish: any): boolean {
-    let self = this;
-    if (!self.checkInt(arrayish.length)) {
-      return false;
-    }
-
-    for (let i = 0; i < arrayish.length; i++) {
-      if (!self.checkInt(arrayish[i]) || arrayish[i] < 0 || arrayish[i] > 255) {
-        return false;
+    if (len > 500) {
+      const parts: string[] = new Array(len);
+      for (let i = 0; i < len; i++) {
+        parts[i] = lookup[input[i]];
       }
+      return parts.join(separator);
+    } else {
+      for (let i = 0; i < len; i++) {
+        if (i > 0) result += separator;
+        result += lookup[input[i]];
+      }
+      return result;
     }
-
-    return true;
   }
 
   /**
-   * Coerce Array
-   * @param arg {any} Argument
-   * @param copy {any} Copy
-   * @protected
+   * Convert HEX to Binary Array
+   * @param hex {string} HEX Input string
+   * @returns {Uint8Array} Binary array
    */
-  private static coerceArray(arg: any, copy?: any): any {
-    let self = this;
-
-    // ArrayBuffer view
-    if (arg.buffer && arg.name === "Uint8Array") {
-      if (copy) {
-        if (arg.slice) {
-          arg = arg.slice();
-        } else {
-          arg = Array.prototype.slice.call(arg);
-        }
-      }
-
-      return arg;
+  public static fromHex(hex: string): Uint8Array {
+    let normalized = hex;
+    if (/[^0-9A-Fa-f]/.test(hex)) {
+      // Remove unsupported symbols
+      normalized = hex.replace(/[^0-9A-Fa-f]/g, '');
     }
 
-    // It's an array; check it is a valid representation of a byte
-    if (Array.isArray(arg)) {
-      if (!self.checkInts(arg)) {
-        throw new Error("Array contains invalid value: " + arg);
-      }
-
-      return new Uint8Array(arg);
+    const len = normalized.length;
+    if (len % 2 !== 0) {
+      throw new Error('Wrong length for HEX');
     }
 
-    // Something else, but behaves like an array (maybe a Buffer? Arguments?)
-    if (self.checkInt(arg.length) && self.checkInts(arg)) {
-      return new Uint8Array(arg);
+    const bytes = new Uint8Array(len / 2);
+    // Get two symbols
+    for (let i = 0, j = 0; i < len; i += 2, j++) {
+      const high = this.hexCharToNibble(normalized.charCodeAt(i));
+      const low = this.hexCharToNibble(normalized.charCodeAt(i + 1));
+      bytes[j] = (high << 4) | low;
     }
+    return bytes;
+  }
 
-    throw new Error("unsupported array-like object");
+  private static hexCharToNibble(code: number): number {
+    // '0'-'9' (48-57)
+    if (code >= 48 && code <= 57) {
+      return code - 48;
+    }
+    // 'A'-'F' (65-70)
+    if (code >= 65 && code <= 70) {
+      return code - 55;
+    }
+    // 'a'-'f' (97-102)
+    if (code >= 97 && code <= 102) {
+      return code - 87;
+    }
+    throw new Error(`Wrong symbol in HEX: ${String.fromCharCode(code)}`);
+  }
+
+  private static isBufferAvailable(): boolean {
+    return typeof Buffer !== 'undefined';
+  }
+
+  private static getTextEncoder(): TextEncoder {
+    if (!this.textEncoder) {
+      this.textEncoder = new TextEncoder();
+    }
+    return this.textEncoder;
+  }
+
+  private static getTextDecoder(): TextDecoder {
+    if (!this.textDecoder) {
+      this.textDecoder = new TextDecoder('utf-8');
+    }
+    return this.textDecoder;
   }
 }

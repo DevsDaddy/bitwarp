@@ -32,7 +32,7 @@ describe('BitWrap Compression Module Tests', () => {
 
     // Short data test
     it('Roundtrip for very short data (size may increase)', () => {
-      const short = BinaryConverter.textToBytes("Hello");
+      const short = BinaryConverter.toUint8Array("Hello");
       const compressed = compressor.compress(short);
       const decompressed = compressor.decompress(compressed);
       expect(decompressed).toEqual(short);
@@ -40,7 +40,7 @@ describe('BitWrap Compression Module Tests', () => {
 
     // Long data test
     it('Compresses long repetitive text effectively', () => {
-      const original = BinaryConverter.textToBytes("abc".repeat(1000));
+      const original = BinaryConverter.toUint8Array("abc".repeat(1000));
       const compressed = compressor.compress(original);
       expect(compressed.length).toBeLessThan(original.length);
       expect(compressor.decompress(compressed)).toEqual(original);

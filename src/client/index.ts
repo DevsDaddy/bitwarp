@@ -13,8 +13,7 @@ import {
   BaseEvent,
   BitWarpOptions,
   ErrorHandler,
-  ErrorType, IClientTransport,
-  ITransport,
+  ErrorType, IClientTransport, ICompressionProvider,
   Logger,
   LogLevel,
   TransportCloseCode, TransportErrorHandler
@@ -25,7 +24,7 @@ import { WebSocketClientTransport } from './transport/websocket';
  * BitWarp Client Options
  */
 export interface BitWarpClientOptions extends BitWarpOptions {
-
+  compression ? : ICompressionProvider | false;
 }
 
 /**

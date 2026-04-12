@@ -13,8 +13,7 @@ import {
   BaseEvent,
   BitWarpOptions,
   ErrorHandler,
-  ErrorType, IServerTransport,
-  ITransport,
+  ErrorType, ICompressionProvider, IServerTransport,
   Logger,
   LogLevel,
   ParseUtils,
@@ -28,7 +27,7 @@ import 'dotenv/config';
  * BitWarp Server Options
  */
 export interface BitWarpServerOptions extends BitWarpOptions{
-
+  compression ? : ICompressionProvider | false;
 }
 
 /**
@@ -102,9 +101,12 @@ export class BitWarpServer {
     self.transport.onClientConnected.addListener(connection => {
 
     });
-    self.transport.onClientDisconnected.addListener(connection => {
+    self.transport.onClientDisconnected.addListener(disconnectState => {
 
     });
+    self.transport.onClientDataReceived.addListener(clientData => {
+
+    })
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Server is successfully started`);
       self.onInitialized.invoke();
@@ -160,6 +162,7 @@ export class BitWarpServer {
     self.transport.onDisconnected.removeAllListeners();
     self.transport.onDisconnected.removeAllListeners();
     self.transport.onClientDisconnected.removeAllListeners();
+    self.transport.onClientDataReceived.removeAllListeners();
   }
   // #endregion
 
