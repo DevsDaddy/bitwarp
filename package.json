@@ -57,7 +57,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
+    "update-docs": "ts-node docutil.ts",
+    "build": "npm run update-docs && tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -74,6 +75,7 @@
     "@typescript-eslint/parser": "^6.0.0",
     "@vitest/coverage-v8": "^1.0.0",
     "eslint": "^8.0.0",
+    "ts-morph": "^27.0.2",
     "ts-node": "^10.9.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
@@ -81,11 +83,11 @@
     "vitest": "^1.0.0"
   },
   "dependencies": {
-    "ws": "^8.0.0",
     "bweave": "^1.0.0",
+    "dotenv": "^17.4.1",
     "flash-buffer": "^1.0.0",
     "quarkdash": "^1.0.7",
-    "dotenv": "^17.4.1"
+    "ws": "^8.0.0"
   },
   "peerDependencies": {
     "ws": "^8.0.0"
