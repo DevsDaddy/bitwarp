@@ -3,13 +3,14 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1005
+ * @build                 1007
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
  */
 /* Import required modules */
 import {
+  BaseEvent, BinaryConverter,
   IClientTransport,
   ITransport,
   ITransportOptions,
@@ -31,6 +32,8 @@ export interface WebSocketClientTransportOptions extends ITransportOptions {
  * WebSocket based client transport
  */
 export class WebSocketClientTransport extends Transport implements ITransport, IClientTransport {
+  // Client Events
+  public onDataReceived : BaseEvent<Uint8Array> = new BaseEvent<Uint8Array>();
 
   /**
    * Create WebSocket based client transport
@@ -100,7 +103,12 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
           self.onError.invoke(new TransportErrorHandler(`WebSocket Transport Client Error`, event));
         });
         connector.addEventListener("message", async (event) => {
-          // TODO: On message
+          let data = event?.data ?? undefined;
+          if(!data) {
+            Logger.warning(`WebSocket Transport received an empty message event.`, event);
+          }else{
+            await self.handleMessage(data);
+          }
         });
 
         // Update connector
@@ -203,6 +211,29 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         reject(new TransportErrorHandler(`Failed to dispose WebSocket Client transport. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ConnectionFailed));
       }
     });
+  }
+
+  /**
+   * Handle raw socket data
+   * @param data {any} WebSocket Data
+   * @private
+   */
+  private async handleMessage(data : any) {
+    let uint8: Uint8Array;
+
+    if (data instanceof Blob) {
+      const arrayBuffer = await data.arrayBuffer();
+      uint8 = BinaryConverter.toUint8Array(arrayBuffer);
+    } else if (data instanceof ArrayBuffer) {
+      uint8 = BinaryConverter.toUint8Array(data);
+    } else if (typeof data === 'string') {
+      uint8 = BinaryConverter.toUint8Array(data);
+    } else {
+      Logger.error(`Unknown data type received: ${typeof data}`);
+      return;
+    }
+
+    this.onDataReceived.invoke(uint8);
   }
 
   /**

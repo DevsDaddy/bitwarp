@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1010
+ * @build                 1011
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -468,6 +468,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
       self.terminateConnection(connectionId, ClientDisconnectCode.ClientError);
     });
 
+    // Send Event
+    self.onClientConnected.invoke(connection);
     Logger.info(`New connection: ${connectionId}`);
   }
 

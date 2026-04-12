@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1005
+ * @build                 1007
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -100,6 +100,9 @@ export class BitWarpClient {
 
       // TODO: Handshake with server
     });
+    self.transport.onDataReceived.addListener((data) => {
+
+    });
     self.transport.onError.addListener((error) => {
       Logger.error(`BitWarp Client Error: ${error?.message ?? "Unknown error"}`);
       self.onInitializationError.invoke(new ErrorHandler(error.message, error?.stack ?? null, ErrorType.ClientException));
@@ -149,6 +152,7 @@ export class BitWarpClient {
     self.transport.onConnected.removeAllListeners();
     self.transport.onError.removeAllListeners();
     self.transport.onDisconnected.removeAllListeners();
+    self.transport.onDataReceived.removeAllListeners();
   }
   // #endregion
 
