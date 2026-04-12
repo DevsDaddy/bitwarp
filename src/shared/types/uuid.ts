@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1003
+ * @build                 1006
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -342,7 +342,7 @@ export class UUID {
 
     // Node.js env
     if (typeof process !== 'undefined' && process.versions?.node) {
-      const crypto = await import('crypto');
+      const crypto = await import('node:crypto');
       const hash = crypto.createHash(algorithm.toLowerCase().replace('-', ''));
       hash.update(combined);
       return new Uint8Array(hash.digest());

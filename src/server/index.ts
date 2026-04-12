@@ -3,17 +3,17 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1005
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               12.04.2026
  */
 /* Import required modules */
 import {
   BaseEvent,
   BitWarpOptions,
   ErrorHandler,
-  ErrorType,
+  ErrorType, IServerTransport,
   ITransport,
   Logger,
   LogLevel,
@@ -37,7 +37,7 @@ export interface BitWarpServerOptions extends BitWarpOptions{
 export class BitWarpServer {
   // Server setup
   private readonly _options: BitWarpServerOptions;
-  private readonly _transport : ITransport;
+  private readonly _transport : IServerTransport;
 
   // Server events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -61,7 +61,7 @@ export class BitWarpServer {
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
 
     // Create transport is not defined
-    this._transport = (this.options.transport) ? this.options.transport : new WebSocketServerTransport();
+    this._transport = (this.options.transport) ? this.options.transport as IServerTransport : new WebSocketServerTransport();
     this._isStarted = false;
   }
 
@@ -71,7 +71,7 @@ export class BitWarpServer {
    * @returns {BitWarpClientOptions} Current options
    */
   public get options() : BitWarpServerOptions { return this._options; }
-  public get transport (): ITransport { return this._transport };
+  public get transport (): IServerTransport { return this._transport };
   public get isStarted (): boolean { return this._isStarted; }
   // #endregion
 
@@ -99,6 +99,12 @@ export class BitWarpServer {
     // Start transport
     self._isStarted = false;
     self.unsubscribeAllTransport();
+    self.transport.onClientConnected.addListener(connection => {
+
+    });
+    self.transport.onClientDisconnected.addListener(connection => {
+
+    });
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Server is successfully started`);
       self.onInitialized.invoke();
@@ -152,6 +158,8 @@ export class BitWarpServer {
     self.transport.onConnected.removeAllListeners();
     self.transport.onError.removeAllListeners();
     self.transport.onDisconnected.removeAllListeners();
+    self.transport.onDisconnected.removeAllListeners();
+    self.transport.onClientDisconnected.removeAllListeners();
   }
   // #endregion
 

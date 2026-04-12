@@ -3,22 +3,29 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1003
+ * @build                 1008
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
  */
 /* Import required modules */
 import {
+  BaseEvent,
+  ClientConnection,
+  ClientDisconnect,
+  ClientDisconnectCode,
+  IServerTransport,
   ITransport,
   ITransportOptions,
-  Logger, ParseUtils,
+  Logger,
+  ParseUtils,
   Transport,
   TransportCloseCode,
   TransportError,
-  TransportErrorHandler
+  TransportErrorHandler,
+  UUID
 } from '../../shared';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import 'dotenv/config';
 
 /**
@@ -43,9 +50,14 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
 /**
  * WebSocket based server transport
  */
-export class WebSocketServerTransport extends Transport implements ITransport {
+export class WebSocketServerTransport extends Transport implements ITransport, IServerTransport {
   // Connections Management
+  private _connections : Map<string, ClientConnection> = new Map();
   private _heartbeatTimer ? : NodeJS.Timeout;
+
+  // Server transport events
+  public onClientConnected : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
+  public onClientDisconnected : BaseEvent<ClientDisconnect> = new BaseEvent<ClientDisconnect>();
 
   /**
    * Create WebSocket based server transport
@@ -95,7 +107,7 @@ export class WebSocketServerTransport extends Transport implements ITransport {
 
         // Subscribe to connector events
         connector.addListener("connection", (client : WebSocket) => {
-          self.handleRawConnection(client);
+          self.handleConnection(client);
         });
         connector.addListener("close", () => {
           self.stopHeartbeat();
@@ -246,8 +258,12 @@ export class WebSocketServerTransport extends Transport implements ITransport {
     let self = this;
     if(!self.options.heartbeat) return;
     if(self._heartbeatTimer) self.stopHeartbeat();
-    self._heartbeatTimer = setInterval(async ()=> {
 
+    // Start heartbeat
+    self._heartbeatTimer = setInterval(async ()=> {
+      self._connections.forEach(connection => {
+        self.pingConnection(connection);
+      });
     }, self.options.heartbeatTimer);
   }
 
@@ -263,12 +279,137 @@ export class WebSocketServerTransport extends Transport implements ITransport {
   }
 
   /**
+   * Ping connection
+   * @param connection {ClientConnection} Connection
+   * @private
+   */
+  private pingConnection(connection : ClientConnection) {
+    // Get socket
+    let self = this;
+    let socket = connection.connector as WebSocket;
+
+    // Connection is already closed?
+    if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+      self.terminateConnection(connection.id);
+      return;
+    }
+
+    // Not alive
+    if (!connection.isAlive) {
+      Logger.log(`Connection ${connection.id} did not respond to ping, terminating...`);
+      self.terminateConnection(connection.id);
+      return;
+    }
+
+    // Setup ping timeout
+    if (connection.pingTimeout) clearTimeout(connection.pingTimeout);
+    connection.pingTimeout = setTimeout(() => {
+      if (!connection.isAlive) {
+        self.terminateConnection(connection.id);
+      }
+    }, self.options.heartbeatTimeout);
+  }
+
+  /**
+   * Terminate connection
+   * @param connectionId {string} connection id
+   * @param disconnectCode {ClientDisconnectCode} disconnect code
+   * @private
+   */
+  private terminateConnection(connectionId: string, disconnectCode ? : ClientDisconnectCode): void {
+    // Find connection
+    let self = this;
+    const connection = self._connections.get(connectionId);
+    if (!connection) return;
+
+    // Has timeout
+    if (connection.pingTimeout) {
+      clearTimeout(connection.pingTimeout);
+    }
+
+    // Close connection
+    let socket = connection.connector as WebSocket;
+    if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) {
+      socket.terminate();
+    }
+
+    // Remove connection
+    self._connections.delete(connectionId);
+    self.onClientDisconnected.invoke({ connectionId: connectionId, code : disconnectCode ?? ClientDisconnectCode.ConnectionTimeout})
+    Logger.info(`Connection ${connectionId} terminated. Disconnection Code: ${disconnectCode ?? ClientDisconnectCode.ConnectionTimeout}`);
+  }
+
+  /**
    * Handle raw client connection
    * @param client {WebSocket} client
    * @private
    */
-  private handleRawConnection(client : WebSocket) {
+  private handleConnection(client : WebSocket) {
     let self = this;
+
+    // Create client connection data
+    const connectionId = UUID.v4();
+    let connection : ClientConnection = {
+      id : connectionId,
+      isAlive : true,
+      connector: client
+    };
+
+    // Add connection to set
+    self._connections.set(connectionId, connection);
+    client.on('pong', () => {
+      connection.isAlive = true;
+      if (connection.pingTimeout) {
+        clearTimeout(connection.pingTimeout);
+        connection.pingTimeout = undefined;
+      }
+    });
+
+    // Add other connection events
+    client.on('message', (data) => {
+      self.handleMessage(connection, data);
+    });
+    client.on('close', () => {
+      self.handleDisconnect(connectionId);
+    })
+    client.on('error', (err) => {
+      Logger.error(`Connection #${connection.id} error: ${err}`);
+      self.terminateConnection(connectionId, ClientDisconnectCode.ClientError);
+    });
+
+    Logger.info(`New connection: ${connectionId}`);
+  }
+
+  /**
+   * Handle disconnect
+   * @param connectionId {string} connection ID
+   * @private
+   */
+  private handleDisconnect(connectionId : string) : void {
+    let self = this;
+
+    // Find connection
+    const connection = self._connections.get(connectionId);
+    if (!connection) return;
+
+    // Clean connection timeouts
+    if (connection.pingTimeout) {
+      clearTimeout(connection.pingTimeout);
+    }
+
+    // Remove connection
+    self._connections.delete(connectionId);
+    self.onClientDisconnected.invoke({ connectionId: connectionId, code: ClientDisconnectCode.NormalDisconnect});
+    Logger.info(`Connection ${connectionId} disconnected normally.`);
+  }
+
+  /**
+   * Handle raw message
+   * @param connection {ClientConnection} client connection
+   * @param data {string|Buffer|ArrayBuffer|Buffer[]} Message data
+   * @private
+   */
+  private handleMessage(connection : ClientConnection, data : string | Buffer | ArrayBuffer | Buffer[]) : void {
 
   }
 

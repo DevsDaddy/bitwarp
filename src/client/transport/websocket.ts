@@ -3,13 +3,14 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1005
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               12.04.2026
  */
 /* Import required modules */
 import {
+  IClientTransport,
   ITransport,
   ITransportOptions,
   Logger,
@@ -29,7 +30,7 @@ export interface WebSocketClientTransportOptions extends ITransportOptions {
 /**
  * WebSocket based client transport
  */
-export class WebSocketClientTransport extends Transport implements ITransport {
+export class WebSocketClientTransport extends Transport implements ITransport, IClientTransport {
 
   /**
    * Create WebSocket based client transport

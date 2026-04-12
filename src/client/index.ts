@@ -3,17 +3,17 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1005
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               12.04.2026
  */
 /* Import required modules */
 import {
   BaseEvent,
   BitWarpOptions,
   ErrorHandler,
-  ErrorType,
+  ErrorType, IClientTransport,
   ITransport,
   Logger,
   LogLevel,
@@ -34,7 +34,7 @@ export interface BitWarpClientOptions extends BitWarpOptions {
 export class BitWarpClient {
   // Client setup
   private readonly _options: BitWarpClientOptions;
-  private readonly _transport : ITransport;
+  private readonly _transport : IClientTransport;
 
   // Client events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -58,7 +58,7 @@ export class BitWarpClient {
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
 
     // Create transport is not defined
-    this._transport = (this.options.transport) ? this.options.transport : new WebSocketClientTransport();
+    this._transport = (this.options.transport) ? this.options.transport as IClientTransport : new WebSocketClientTransport();
     this._isConnected = false;
   }
 
@@ -68,7 +68,7 @@ export class BitWarpClient {
    * @returns {BitWarpClientOptions} Current options
    */
   public get options() : BitWarpClientOptions { return this._options; }
-  public get transport (): ITransport { return this._transport };
+  public get transport (): IClientTransport { return this._transport };
   public get isConnected (): boolean { return this._isConnected; };
   // #endregion
 

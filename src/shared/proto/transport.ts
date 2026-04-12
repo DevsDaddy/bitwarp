@@ -3,14 +3,15 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1005
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               12.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
 import { ErrorHandler } from '../types/handlers';
+import { ClientConnection, ClientDisconnect } from './peer';
 
 /**
  * Basic Transport Errors
@@ -166,6 +167,21 @@ export interface ITransport {
   disconnect(closeCode : TransportCloseCode) : Promise<TransportCloseCode|TransportErrorHandler>;
   reconnect() : Promise<any|TransportErrorHandler>;
   dispose() : Promise<void>;
+}
+
+/**
+ * Server Transport
+ */
+export interface IServerTransport extends ITransport{
+  onClientConnected : BaseEvent<ClientConnection>;
+  onClientDisconnected : BaseEvent<ClientDisconnect>;
+}
+
+/**
+ * Client Transport
+ */
+export interface IClientTransport extends ITransport{
+
 }
 
 /**
