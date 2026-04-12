@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1007
+ * @build                 1009
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -18,7 +18,8 @@ import {
   LogLevel,
   ParseUtils,
   TransportCloseCode,
-  TransportErrorHandler
+  TransportErrorHandler,
+  Performance, PERF_CONSTANTS
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
@@ -35,8 +36,10 @@ export interface BitWarpServerOptions extends BitWarpOptions{
  */
 export class BitWarpServer {
   // Server setup
+  private readonly _isDebug : boolean;
   private readonly _options: BitWarpServerOptions;
   private readonly _transport : IServerTransport;
+  private readonly _performance: Performance = new Performance();
 
   // Server events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -60,6 +63,7 @@ export class BitWarpServer {
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
 
     // Create transport is not defined
+    this._isDebug = this.options.debug ?? false;
     this._transport = (this.options.transport) ? this.options.transport as IServerTransport : new WebSocketServerTransport();
     this._isStarted = false;
   }
@@ -72,6 +76,7 @@ export class BitWarpServer {
   public get options() : BitWarpServerOptions { return this._options; }
   public get transport (): IServerTransport { return this._transport };
   public get isStarted (): boolean { return this._isStarted; }
+  public get isDebug (): boolean { return this._isDebug; }
   // #endregion
 
   // #region Server connection
@@ -95,6 +100,9 @@ export class BitWarpServer {
       return;
     }
 
+    // Add mark for transport initialized
+    self._performance.mark(PERF_CONSTANTS.TRANSPORT_CREATED);
+
     // Start transport
     self._isStarted = false;
     self.unsubscribeAllTransport();
@@ -109,6 +117,8 @@ export class BitWarpServer {
     })
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Server is successfully started`);
+      self._performance.mark(PERF_CONSTANTS.TRANSPORT_CONNECTED);
+      Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
     });
     self.transport.onError.addListener((error) => {

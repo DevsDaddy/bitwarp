@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1002
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               12.04.2026
  */
 /**
  * Performance Record
@@ -36,9 +36,9 @@ export class Performance {
   // Measures storage
   private measures: Map<string, PerformanceMeasure> = new Map();
   // Native performance tool
-  private useNativePerformance: boolean;
+  private readonly useNativePerformance: boolean;
   // Performance link
-  private perf: typeof performance | null = null;
+  private readonly perf: typeof performance | null = null;
 
   /**
    * Create Performance Measurement Class

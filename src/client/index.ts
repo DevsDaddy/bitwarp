@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1007
+ * @build                 1009
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -16,7 +16,8 @@ import {
   ErrorType, IClientTransport, ICompressionProvider,
   Logger,
   LogLevel,
-  TransportCloseCode, TransportErrorHandler
+  TransportCloseCode, TransportErrorHandler,
+  Performance, PERF_CONSTANTS
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 
@@ -32,8 +33,10 @@ export interface BitWarpClientOptions extends BitWarpOptions {
  */
 export class BitWarpClient {
   // Client setup
+  private readonly _isDebug : boolean;
   private readonly _options: BitWarpClientOptions;
   private readonly _transport : IClientTransport;
+  private readonly _performance: Performance = new Performance();
 
   // Client events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -57,6 +60,7 @@ export class BitWarpClient {
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
 
     // Create transport is not defined
+    this._isDebug = this.options.debug ?? false;
     this._transport = (this.options.transport) ? this.options.transport as IClientTransport : new WebSocketClientTransport();
     this._isConnected = false;
   }
@@ -69,6 +73,7 @@ export class BitWarpClient {
   public get options() : BitWarpClientOptions { return this._options; }
   public get transport (): IClientTransport { return this._transport };
   public get isConnected (): boolean { return this._isConnected; };
+  public get isDebug() : boolean { return this._isDebug; };
   // #endregion
 
   // #region Client connection
@@ -92,10 +97,15 @@ export class BitWarpClient {
       return;
     }
 
+    // Add mark for transport initialized
+    self._performance.mark(PERF_CONSTANTS.TRANSPORT_CREATED);
+
     // Start transport
     self.unsubscribeAllTransport();
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Client is successfully started`);
+      self._performance.mark(PERF_CONSTANTS.TRANSPORT_CONNECTED);
+      Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
 
       // TODO: Handshake with server
