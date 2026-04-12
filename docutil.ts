@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1001
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -59,7 +59,7 @@ async function updateJSDocInChangedFiles() {
           const currentBuild = parseInt(commentText.trim(), 10);
           if (!isNaN(currentBuild)) {
             const newBuild = currentBuild + 1;
-            buildTag.replaceWithText(`@build ${newBuild}`);
+            buildTag.replaceWithText(`@build                 ${newBuild}`);
             fileWasModified = true;
             console.log(`  -> File: ${sourceFile.getFilePath()}, @build updated from ${currentBuild} to ${newBuild}`);
           }
@@ -68,7 +68,7 @@ async function updateJSDocInChangedFiles() {
 
       // Work with @updated
       if (updatedTag) {
-        updatedTag.replaceWithText(`@updated ${formattedDate}`);
+        updatedTag.replaceWithText(`@updated               ${formattedDate}`);
         fileWasModified = true;
         console.log(`  -> File: ${sourceFile.getFilePath()}, @updated changed to ${formattedDate}`);
       }

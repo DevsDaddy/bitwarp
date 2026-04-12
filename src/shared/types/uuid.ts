@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build 1002
+ * @build                 1003
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated 12.04.2026
+ * @updated               12.04.2026
  */
 /**
  * Fast UUID Util
