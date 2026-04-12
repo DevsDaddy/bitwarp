@@ -46,7 +46,6 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
 export class WebSocketServerTransport extends Transport implements ITransport {
   // Connections Management
   private _heartbeatTimer ? : NodeJS.Timeout;
-  private _rawConnections : Set<WebSocket> = new Set();
 
   /**
    * Create WebSocket based server transport
@@ -271,19 +270,6 @@ export class WebSocketServerTransport extends Transport implements ITransport {
   private handleRawConnection(client : WebSocket) {
     let self = this;
 
-    // Has raw connection - remove
-    if(self._rawConnections.has(client)) {
-      self._rawConnections.delete(client);
-    }
-
-    // Process raw connection to peer
-    client.on("close", ()=>{
-      // Remove client from raw connections
-      if(self._rawConnections.has(client)) {
-        self._rawConnections.delete(client);
-      }
-    })
-    self._rawConnections.add(client);
   }
 
   /**

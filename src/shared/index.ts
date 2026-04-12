@@ -6,13 +6,14 @@
  * @build                 1000
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               12.04.2026
  */
 /* Export Shared Types */
 export * from "./types/common";
 export * from "./types/handlers";
 export * from "./types/color";
 export * from "./types/event";
+export * from "./types/uuid";
 
 /* Export Debug Tools */
 export * from "./debug/logger";
