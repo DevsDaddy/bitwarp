@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1008
+ * @build                 1010
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -15,7 +15,7 @@ import {
   ClientConnection,
   ClientData,
   ClientDisconnect,
-  ClientDisconnectCode,
+  ClientDisconnectCode, FastQueue,
   IServerTransport,
   ITransport,
   ITransportOptions,
@@ -47,6 +47,11 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
   heartbeat : boolean;
   heartbeatTimer : number;
   heartbeatTimeout : number;
+
+  // Resend options
+  resend : boolean;
+  resendTimer : number;
+  resendPerIteration : number;
 }
 
 /**
@@ -55,8 +60,9 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
 export class WebSocketServerTransport extends Transport implements ITransport, IServerTransport {
   // Connections Management
   private _connections : Map<string, ClientConnection> = new Map();
-  private _resendQueue : Queue
+  private _resendQueue : FastQueue<ClientData> = new FastQueue<ClientData>();
   private _heartbeatTimer ? : NodeJS.Timeout;
+  private _resendTimer ? : NodeJS.Timeout;
 
   // Server transport events
   public onClientConnected : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
@@ -93,6 +99,9 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
         // Create connector
         self.stopHeartbeat();
+        self.stopResendQueue();
+        self._resendQueue.clear();
+        self._connections.clear();
         self.onBeforeConnected.invoke();
         let currentOptions = self.options;
         let hostUrl = `${currentOptions.protocol}${currentOptions.host}`;
@@ -116,6 +125,9 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         });
         connector.addListener("close", () => {
           self.stopHeartbeat();
+          self.stopResendQueue();
+          self._resendQueue.clear();
+          self._connections.clear();
           self.dispose().then(()=>{
             self.onDisconnected.invoke(TransportCloseCode.ClosedByServer);
           })
@@ -145,6 +157,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
           self.isConnected = true;
           self.onConnected.invoke(connector);
           self.startHeartbeat();
+          self.startResendQueue();
           resolve(connector);
         });
         connector.addListener("wsClientError", (error) => {
@@ -303,9 +316,12 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     // Single connection
     if (typeof to === "string") {
       let connection = self._connections.get(to);
-      if (!connection || !connection.isAlive) {
-        // TODO: Resend Queue
-        return new TransportErrorHandler(`Failed to send data for ${to}. Connection is not alive or not found.`, null, TransportError.ConnectionFailed);
+      if (!connection) {
+        return new TransportErrorHandler(`Failed to send data via transport. Connection is not found for id: ${to}`);
+      }
+      if (!connection.isAlive) {
+        self._resendQueue.enqueue({ connection: connection as ClientConnection, data: data});
+        return new TransportErrorHandler(`Failed to send data for ${to}. Connection is not alive.`, null, TransportError.ConnectionFailed);
       }
 
       return this.send(data, connection);
@@ -317,7 +333,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
       if(connection && connection.isAlive) {
         if(!recipients.has(connection)) recipients.add(connection);
       }else{
-        // TODO: Resend Queue
+        if(connection && !connection.isAlive) self._resendQueue.enqueue({ connection: connection as ClientConnection, data: data});
       }
     });
 
@@ -491,8 +507,36 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     })
   }
 
-  private resendQueue(){
+  /**
+   * Start resend queue
+   * @private
+   */
+  private startResendQueue(){
+    let self = this;
+    if(!self.options.resend) return;
+    if(self._resendTimer) self.stopResendQueue();
 
+    // Start resend queue
+    self._resendTimer = setInterval(()=> {
+      if(self._resendQueue.size < 0) return;
+
+      Logger.info(`Resending queue failed messages: ${self._resendQueue.size}`);
+      for(let i = 0; i < self.options.resendPerIteration; i++) {
+        const msg = self._resendQueue.dequeue();
+        if(msg) self.send(msg.data, msg.connection);
+      }
+    }, self.options.resendTimer);
+  }
+
+  /**
+   * Stop resend queue
+   * @private
+   */
+  private stopResendQueue(){
+    let self = this;
+    if(!self._resendTimer || !self.options.resend) return;
+    clearInterval(self._resendTimer);
+    self._resendTimer = undefined;
   }
 
   /**
@@ -522,6 +566,10 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     // Heartbeat options
     heartbeat: true,
     heartbeatTimer: 30000,
-    heartbeatTimeout: 5000
+    heartbeatTimeout: 5000,
+
+    resend: true,
+    resendTimer: 30000,
+    resendPerIteration: 10000
   }
 }
