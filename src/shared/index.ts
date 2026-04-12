@@ -14,6 +14,7 @@ export * from "./types/handlers";
 export * from "./types/color";
 export * from "./types/event";
 export * from "./types/uuid";
+export * from "./types/queue";
 
 /* Export Debug Tools */
 export * from "./debug/logger";

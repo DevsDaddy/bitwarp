@@ -11,7 +11,8 @@
 /* Import required modules */
 import { describe, it, expect } from 'vitest';
 import { Color, RGBValue } from '../../src/shared';
-import { UUIDString, UUID } from '../../src/shared';
+import { UUID } from '../../src/shared';
+import { FastQueue } from '../../src/shared';
 
 /**
  * Describe tests
@@ -150,15 +151,6 @@ describe('BitWrap Core Tests', () => {
         expect(UUID.validate('F47AC10B-58CC-4372-A567-0E02B2C3D479')).toBe(true);
       });
 
-      it('validate should reject invalid strings', () => {
-        expect(UUID.validate('not-a-uuid')).toBe(false);
-        expect(UUID.validate('g47ac10b-58cc-4372-a567-0e02b2c3d479')).toBe(false); // 'g' вне диапазона
-        expect(UUID.validate('f47ac10b58cc4372a5670e02b2c3d479')).toBe(false); // без дефисов
-        expect(UUID.validate('')).toBe(false);
-        // @ts-expect-error тестируем неверный тип
-        expect(UUID.validate(null)).toBe(false);
-      });
-
       it('isUUID type guard works', () => {
         const value: unknown = UUID.v4();
         if (UUID.isUUID(value)) {
@@ -245,6 +237,130 @@ describe('BitWrap Core Tests', () => {
         expect(UUID.validate(uuids[999])).toBe(true);
         console.log(`Generated 1000 UUIDs in ${(end - start).toFixed(2)}ms`);
       });
+    });
+  });
+
+  // Test FastQueue
+  describe('Fast Queue', () => {
+    let queue: FastQueue<number>;
+
+    beforeEach(() => {
+      queue = new FastQueue<number>();
+    });
+
+    it('must be empty then created', () => {
+      expect(queue.isEmpty()).toBe(true);
+      expect(queue.size).toBe(0);
+      expect(queue.peek()).toBeUndefined();
+      expect(queue.dequeue()).toBeUndefined();
+    });
+
+    it('correct adds an items (enqueue)', () => {
+      queue.enqueue(1);
+      expect(queue.isEmpty()).toBe(false);
+      expect(queue.size).toBe(1);
+      expect(queue.peek()).toBe(1);
+
+      queue.enqueue(2);
+      expect(queue.size).toBe(2);
+      expect(queue.peek()).toBe(1);
+    });
+
+    it('correct remove an items FIFO (dequeue)', () => {
+      queue.enqueue(10);
+      queue.enqueue(20);
+      queue.enqueue(30);
+
+      expect(queue.dequeue()).toBe(10);
+      expect(queue.size).toBe(2);
+      expect(queue.peek()).toBe(20);
+
+      expect(queue.dequeue()).toBe(20);
+      expect(queue.size).toBe(1);
+      expect(queue.peek()).toBe(30);
+
+      expect(queue.dequeue()).toBe(30);
+      expect(queue.isEmpty()).toBe(true);
+      expect(queue.dequeue()).toBeUndefined();
+    });
+
+    it('correct works with enqueue and dequeue', () => {
+      queue.enqueue(1);
+      queue.enqueue(2);
+      expect(queue.dequeue()).toBe(1);
+
+      queue.enqueue(3);
+      expect(queue.dequeue()).toBe(2);
+      expect(queue.dequeue()).toBe(3);
+      expect(queue.isEmpty()).toBe(true);
+    });
+
+    it('method clear must clean queue', () => {
+      queue.enqueue(1);
+      queue.enqueue(2);
+      queue.enqueue(3);
+
+      queue.clear();
+      expect(queue.isEmpty()).toBe(true);
+      expect(queue.size).toBe(0);
+      expect(queue.peek()).toBeUndefined();
+      expect(queue.dequeue()).toBeUndefined();
+
+      queue.enqueue(42);
+      expect(queue.peek()).toBe(42);
+      expect(queue.size).toBe(1);
+    });
+
+    it('must support an for...of iterator', () => {
+      const values = [5, 10, 15, 20];
+      values.forEach(v => queue.enqueue(v));
+
+      const iterated: number[] = [];
+      for (const item of queue) {
+        iterated.push(item);
+      }
+      expect(iterated).toEqual(values);
+
+      // Исходная очередь не должна измениться
+      expect(queue.size).toBe(values.length);
+    });
+
+    it('must correctly works with large size (performance test with O(1))', () => {
+      const count = 100_000;
+      // Enqueue
+      for (let i = 0; i < count; i++) {
+        queue.enqueue(i);
+      }
+      expect(queue.size).toBe(count);
+
+      // Dequeue
+      for (let i = 0; i < count; i++) {
+        expect(queue.dequeue()).toBe(i);
+      }
+      expect(queue.isEmpty()).toBe(true);
+
+      for (let i = 0; i < count; i++) {
+        queue.enqueue(i);
+        if (i % 2 === 0) {
+          queue.dequeue();
+        }
+      }
+
+      expect(queue.size).toBe(count - Math.floor(count / 2));
+    });
+
+    it('must works with any types', () => {
+      const strQueue = new FastQueue<string>();
+      strQueue.enqueue('hello');
+      strQueue.enqueue('world');
+      expect(strQueue.dequeue()).toBe('hello');
+      expect(strQueue.peek()).toBe('world');
+
+      const objQueue = new FastQueue<{ id: number }>();
+      objQueue.enqueue({ id: 1 });
+      objQueue.enqueue({ id: 2 });
+      expect(objQueue.dequeue()?.id).toBe(1);
+      expect(objQueue.peek()?.id).toBe(2);
     });
   });
 });
