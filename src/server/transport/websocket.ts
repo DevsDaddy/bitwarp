@@ -518,12 +518,12 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
     // Start resend queue
     self._resendTimer = setInterval(()=> {
-      if(self._resendQueue.size < 0) return;
-
-      Logger.info(`Resending queue failed messages: ${self._resendQueue.size}`);
-      for(let i = 0; i < self.options.resendPerIteration; i++) {
-        const msg = self._resendQueue.dequeue();
-        if(msg) self.send(msg.data, msg.connection);
+      if(self._resendQueue.size > 0) {
+        Logger.info(`Resending queue failed messages: ${self._resendQueue.size}`);
+        for(let i = 0; i < self.options.resendPerIteration; i++) {
+          const msg = self._resendQueue.dequeue();
+          if(msg) self.send(msg.data, msg.connection);
+        }
       }
     }, self.options.resendTimer);
   }
