@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1003
+ * @build                 1004
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               12.04.2026
@@ -38,3 +38,4 @@ export * from "./compression";
 /* Export Utils */
 export * from "./utils/format";
 export * from "./utils/parse"
+export * from "./utils/converters";
