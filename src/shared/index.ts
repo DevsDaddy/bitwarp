@@ -33,7 +33,7 @@ export * from "./proto/transport";
 //export * from "./crypto";
 
 /* Export Compression Providers */
-//export * from "./compression";
+export * from "./compression";
 
 /* Export Utils */
 export * from "./utils/format";

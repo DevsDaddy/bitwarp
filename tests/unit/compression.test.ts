@@ -15,5 +15,7 @@ import { describe, it, expect } from 'vitest';
  * Describe tests
  */
 describe('BitWrap Compression Module Tests', () => {
+  describe('BWeave Compression Provider Checks', () => {
 
+  })
 });
