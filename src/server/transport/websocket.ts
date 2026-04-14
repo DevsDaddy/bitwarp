@@ -65,6 +65,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
   private _resendTimer ? : NodeJS.Timeout;
 
   // Server transport events
+  public onBeforeClientConnected : BaseEvent<ClientConnection> = new BaseEvent();
   public onClientConnected : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
   public onClientDisconnected : BaseEvent<ClientDisconnect> = new BaseEvent<ClientDisconnect>();
   public onClientDataReceived : BaseEvent<ClientData> = new BaseEvent<ClientData>();
@@ -450,6 +451,9 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
       isAlive : true,
       connector: client
     };
+
+    // On before client connected
+    self.onBeforeClientConnected.invoke(connection);
 
     // Add connection to set
     self._connections.set(connectionId, connection);

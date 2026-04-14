@@ -175,6 +175,7 @@ export interface ITransport {
  */
 export interface IServerTransport extends ITransport{
   // Server Transport Events
+  onBeforeClientConnected : BaseEvent<ClientConnection>;
   onClientConnected : BaseEvent<ClientConnection>;
   onClientDisconnected : BaseEvent<ClientDisconnect>;
   onClientDataReceived : BaseEvent<ClientData>;
