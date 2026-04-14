@@ -21,6 +21,9 @@ import {
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 
+/* Export Libraries */
+export * from "./transport/websocket";
+
 /**
  * BitWarp Client Options
  */

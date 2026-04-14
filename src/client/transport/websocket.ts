@@ -16,7 +16,7 @@ import {
   IClientTransport,
   ITransport,
   ITransportOptions,
-  Logger,
+  Logger, MiddlewareHandler,
   RawPacket,
   Transport,
   TransportCloseCode,
@@ -239,6 +239,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
     try {
       // Send an event
       await self.onBeforePacketSend.invokeAsync(rawPacket);
+      await self.invokeMiddleware(rawPacket);
 
       // If not connected - put to resend queue
       if(!self.isConnected || self.connector.readyState !== WebSocket.OPEN) {

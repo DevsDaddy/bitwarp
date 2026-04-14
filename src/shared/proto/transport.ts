@@ -13,6 +13,8 @@ import { BaseEvent } from '../types/event';
 import { ErrorHandler } from '../types/handlers';
 import { ClientConnection, ClientData, ClientDisconnect } from './peer';
 import { Packet, RawPacket } from './packet';
+import { MiddlewareHandler } from '../types/common';
+import { Logger } from '../debug/logger';
 
 /**
  * Basic Transport Errors
@@ -168,6 +170,9 @@ export interface ITransport {
   disconnect(closeCode : TransportCloseCode) : Promise<TransportCloseCode|TransportErrorHandler>;
   reconnect() : Promise<any|TransportErrorHandler>;
   dispose() : Promise<void>;
+
+  // Middleware handler
+  use(handler : MiddlewareHandler) : void;
 }
 
 /**
@@ -180,6 +185,7 @@ export interface IServerTransport extends ITransport{
   onClientDisconnected : BaseEvent<ClientDisconnect>;
   onClientDataReceived : BaseEvent<ClientData>;
   onClientDataSend : BaseEvent<ClientData>;
+  onBeforeClientDataSent : BaseEvent<ClientData>;
 
   // Server transport methods
   send(data : Uint8Array, to : ClientConnection | Set<ClientConnection>) : true | TransportErrorHandler;
@@ -241,6 +247,9 @@ export abstract class Transport implements ITransport {
   private readonly _options : ITransportOptions;
   private _connector ? : any;
 
+  // Middlewares for transport
+  private _middlewares : Set<MiddlewareHandler> = new Set<MiddlewareHandler>();
+
   /**
    * Basic transport
    * @param options {ITransportOptions} transport options
@@ -275,4 +284,44 @@ export abstract class Transport implements ITransport {
   public abstract disconnect(closeCode : TransportCloseCode): Promise<TransportCloseCode | TransportErrorHandler>;
   public abstract reconnect(): Promise<any|TransportErrorHandler>;
   public abstract dispose() : Promise<void>;
+
+  /**
+   * Add middleware
+   * @param handler {MiddlewareHandler} Middleware callback
+   */
+  public use(handler: MiddlewareHandler) : void {
+    let self = this;
+    if(self._middlewares.has(handler)) return;
+    self._middlewares.add(handler);
+  }
+
+  /**
+   * Invoke middleware
+   * @param args {any[]} Middleware
+   * @protected
+   */
+  protected async invokeMiddleware(...args : any[]) : Promise<void> {
+    let self = this;
+    const promises: Promise<void>[] = [];
+
+    for (const handler of self._middlewares) {
+      try {
+        const result = handler(...args);
+        if (result instanceof Promise) {
+          promises.push(result);
+        }
+      } catch (error : any) {
+        Logger.error(`Middleware exception: ${error?.message ?? "Unknown error"}`, error);
+      }
+    }
+
+    if (promises.length > 0) {
+      const results = await Promise.allSettled(promises);
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          Logger.error(`Middleware asynchronous error: ${result?.reason?.message ?? "Unknown error"}`, result.reason);
+        }
+      }
+    }
+  }
 }

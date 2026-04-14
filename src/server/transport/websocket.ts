@@ -19,7 +19,7 @@ import {
   IServerTransport,
   ITransport,
   ITransportOptions,
-  Logger,
+  Logger, MiddlewareHandler,
   ParseUtils,
   Transport,
   TransportCloseCode,
@@ -68,6 +68,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
   public onBeforeClientConnected : BaseEvent<ClientConnection> = new BaseEvent();
   public onClientConnected : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
   public onClientDisconnected : BaseEvent<ClientDisconnect> = new BaseEvent<ClientDisconnect>();
+  public onBeforeClientDataSent : BaseEvent<ClientData> = new BaseEvent<ClientData>();
   public onClientDataReceived : BaseEvent<ClientData> = new BaseEvent<ClientData>();
   public onClientDataSend : BaseEvent<ClientData> = new BaseEvent<ClientData>();
 
@@ -290,6 +291,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         }
 
         // Send data to client
+        self.onBeforeClientDataSent.invoke({ connection: connection, data: data});
+        self.invokeMiddleware(connection, data);
         socket.send(data);
         self.onClientDataSend.invoke({ connection: connection, data: data });
         return true;

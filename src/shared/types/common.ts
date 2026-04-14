@@ -27,3 +27,8 @@ export interface BitWarpOptions {
   // Basic options
   transport ? : ITransport;
 }
+
+/**
+ * Middleware Handler
+ */
+export type MiddlewareHandler<TArgs extends any[] = any[]> = (...args: TArgs) => void | Promise<void>;

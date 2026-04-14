@@ -24,6 +24,11 @@ import {
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
 
+/* Export Libraries */
+export * from "./transport/websocket";
+export * from "./peer";
+export * from "./router";
+
 /**
  * BitWarp Server Options
  */
