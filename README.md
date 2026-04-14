@@ -21,6 +21,7 @@
 - [Installation and Examples](#get-started);
 - [Comparison](#network-libraries-comparison);
 - [Documentation](#documentation);
+- [Protocol Schema](https://app.holst.so/share/b/a8c29503-0c36-495f-b380-37f5bb4993e2)
 - [Roadmap](#roadmap);
 - [Licensing](#licensing);
 
@@ -28,6 +29,8 @@
 
 ## About BitWarp Networking
 [WIP]
+
+> Read more about BitWarp Networking in [documentation](https://github.com/devsdaddy/bitwarp/wiki) or [protocol schema](https://app.holst.so/share/b/a8c29503-0c36-495f-b380-37f5bb4993e2)
 
 ---
 
@@ -62,3 +65,5 @@
 [WIP]
 
 ---
+
+[About](#about-bitwarp-networking) | [Schema](https://app.holst.so/share/b/a8c29503-0c36-495f-b380-37f5bb4993e2) | [Get Started](#get-started) | [Documentation](https://github.com/devsdaddy/bitwarp/wiki)
