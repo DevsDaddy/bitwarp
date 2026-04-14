@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1009
+ * @build                 1010
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               13.04.2026
  */
 /* Import required modules */
 import {
@@ -19,7 +19,7 @@ import {
   ParseUtils,
   TransportCloseCode,
   TransportErrorHandler,
-  Performance, PERF_CONSTANTS
+  Performance, PERF_CONSTANTS, ClientData, ClientConnection, ClientDisconnect
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
@@ -40,6 +40,7 @@ export class BitWarpServer {
   private readonly _options: BitWarpServerOptions;
   private readonly _transport : IServerTransport;
   private readonly _performance: Performance = new Performance();
+  private readonly _compressor ? : ICompressionProvider;
 
   // Server events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -61,6 +62,9 @@ export class BitWarpServer {
     // Initial checks
     if(!this.options.debug) Logger.toggle(false);
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
+
+    // Init compressor
+    if(this.options.compression) this._compressor = this.options.compression;
 
     // Create transport is not defined
     this._isDebug = this.options.debug ?? false;
@@ -107,13 +111,13 @@ export class BitWarpServer {
     self._isStarted = false;
     self.unsubscribeAllTransport();
     self.transport.onClientConnected.addListener(connection => {
-
+      self.handleRawConnection(connection);
     });
     self.transport.onClientDisconnected.addListener(disconnectState => {
-
+      self.handleRawDisconnect(disconnectState);
     });
     self.transport.onClientDataReceived.addListener(clientData => {
-
+      self.handleRawMessage(clientData);
     })
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Server is successfully started`);
@@ -158,7 +162,6 @@ export class BitWarpServer {
     self._isStarted = false;
     self.unsubscribeAllTransport();
     self.transport.updateConnector(undefined);
-    // TODO: Cleanup server
   }
 
   /**
@@ -173,6 +176,44 @@ export class BitWarpServer {
     self.transport.onDisconnected.removeAllListeners();
     self.transport.onClientDisconnected.removeAllListeners();
     self.transport.onClientDataReceived.removeAllListeners();
+  }
+  // #endregion
+
+  // #region Work with packets
+
+  /**
+   * Handle raw connection
+   * @param connection {ClientConnection} Connection from transport
+   * @private
+   */
+  private handleRawConnection(connection : ClientConnection) {
+
+  }
+
+  /**
+   * Handle raw disconnect
+   * @param disconnect {ClientDisconnect} Disconnect state from transport
+   * @private
+   */
+  private handleRawDisconnect(disconnect : ClientDisconnect) {
+
+  }
+
+  /**
+   * Handle raw message
+   * @param clientData {ClientData} Raw client data
+   * @private
+   */
+  private handleRawMessage(clientData : ClientData) : void {
+    let self = this;
+
+    // Check compression
+    if(self.options.compression){
+      if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
+      clientData.data = self._compressor.decompress(clientData.data);
+    }
+
+
   }
   // #endregion
 

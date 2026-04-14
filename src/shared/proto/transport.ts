@@ -12,6 +12,7 @@
 import { BaseEvent } from '../types/event';
 import { ErrorHandler } from '../types/handlers';
 import { ClientConnection, ClientData, ClientDisconnect } from './peer';
+import { Packet, RawPacket } from './packet';
 
 /**
  * Basic Transport Errors
@@ -188,7 +189,14 @@ export interface IServerTransport extends ITransport{
  * Client Transport
  */
 export interface IClientTransport extends ITransport{
+  // Raw data events
   onDataReceived : BaseEvent<Uint8Array>;
+  onBeforePacketSend : BaseEvent<RawPacket>;
+  onPacketSent : BaseEvent<RawPacket>;
+  onPacketError : BaseEvent<{ packet: RawPacket, error: TransportErrorHandler }>;
+
+  // Methods
+  send(rawPacket : RawPacket): Promise<void>
 }
 
 /**
@@ -199,7 +207,7 @@ export interface ITransportOptions {
   host ? : string;
   port ? : number;
   path ? : string;
-  reconnectOptions ? : ReconnectOptions;
+  reconnect ? : ReconnectOptions;
 }
 
 /**

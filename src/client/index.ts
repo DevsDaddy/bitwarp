@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1009
+ * @build                 1010
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               13.04.2026
  */
 /* Import required modules */
 import {
@@ -37,6 +37,7 @@ export class BitWarpClient {
   private readonly _options: BitWarpClientOptions;
   private readonly _transport : IClientTransport;
   private readonly _performance: Performance = new Performance();
+  private readonly _compressor ? : ICompressionProvider;
 
   // Client events
   public readonly onInitialized : BaseEvent = new BaseEvent();
@@ -58,6 +59,9 @@ export class BitWarpClient {
     // Initial checks
     if(!this.options.debug) Logger.toggle(false);
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
+
+    // Init compressor
+    if(this.options.compression) this._compressor = this.options.compression;
 
     // Create transport is not defined
     this._isDebug = this.options.debug ?? false;
@@ -111,7 +115,7 @@ export class BitWarpClient {
       // TODO: Handshake with server
     });
     self.transport.onDataReceived.addListener((data) => {
-
+      self.handleRawMessage(data);
     });
     self.transport.onError.addListener((error) => {
       Logger.error(`BitWarp Client Error: ${error?.message ?? "Unknown error"}`);
@@ -150,7 +154,6 @@ export class BitWarpClient {
     self._isConnected = false;
     self.unsubscribeAllTransport();
     self.transport.updateConnector(undefined);
-    // TODO: Cleanup server
   }
 
   /**
@@ -163,6 +166,26 @@ export class BitWarpClient {
     self.transport.onError.removeAllListeners();
     self.transport.onDisconnected.removeAllListeners();
     self.transport.onDataReceived.removeAllListeners();
+  }
+  // #endregion
+
+  // #region Work with packets
+
+  /**
+   * Handle raw message from server
+   * @param message {Uint8Array} Message data
+   * @private
+   */
+  private handleRawMessage(message : Uint8Array) {
+    let self = this;
+
+    // Check compression
+    if(self.options.compression){
+      if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
+      message = self._compressor.decompress(message);
+    }
+
+
   }
   // #endregion
 

@@ -33,7 +33,7 @@ describe('BitWrap Server Tests', () => {
         port: 8080,
         path: "/",
         protocol: "",
-        reconnectOptions: {
+        reconnect: {
           autoReconnect: false,
           maxAttempts: 5,
           delay: 2000,

@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1006
+ * @build                 1007
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               13.04.2026
  */
 /* Export Shared Constants */
 export * from "./constants";
@@ -28,7 +28,7 @@ export * from "./debug/performance";
 export * from "./proto/transport";
 export * from "./proto/compression";
 export * from "./proto/peer";
-//export * from "./proto/packet";
+export * from "./proto/packet";
 export * from "./proto/crypto";
 export * from "./proto/transport";
 //export * from "./proto/types";

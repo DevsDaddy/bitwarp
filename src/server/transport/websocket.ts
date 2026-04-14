@@ -137,7 +137,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
           self.isConnected = false;
 
           // Trying to reconnect
-          if(self.options.reconnectOptions?.autoReconnect && !self.reconnection.isReconnecting){
+          if(self.options.reconnect?.autoReconnect && !self.reconnection.isReconnecting){
             let reconnect = await self.reconnect();
             if(reconnect instanceof TransportErrorHandler) err = reconnect;
             else{
@@ -218,8 +218,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         self.onReconnecting.invoke(true);
 
         // Attempts exhausted
-        if(self.options.reconnectOptions?.maxAttempts && self.options.reconnectOptions?.maxAttempts > 0){
-          if(self.reconnection.currentAttempt >= self.options.reconnectOptions?.maxAttempts){
+        if(self.options.reconnect?.maxAttempts && self.options.reconnect?.maxAttempts > 0){
+          if(self.reconnection.currentAttempt >= self.options.reconnect?.maxAttempts){
             self.reconnection = { isReconnecting : false, reconnectionTimer: null, currentAttempt: 0 };
             self.onReconnecting.invoke(false);
             let err = `Failed to reconnect. The maximum number of attempts has been exhausted`;
@@ -230,7 +230,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         }
 
         // Try to reconnect
-        let reconnectDelay = self.options.reconnectOptions?.delay ?? 5000;
+        let reconnectDelay = self.options.reconnect?.delay ?? 5000;
         self.reconnection.currentAttempt += 1;
         Logger.info(`Trying to restart WebSocket Transport. Attempt ${self.reconnection.currentAttempt}`);
         self.reconnection.reconnectionTimer = setTimeout(async ()=> {
@@ -281,16 +281,21 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
     /** Try send data using connection */
     function trySend(connection : ClientConnection) {
-      let socket = connection.connector as WebSocket;
-      if(!socket || socket.readyState !== WebSocket.OPEN) {
-        self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
-        return new TransportErrorHandler(`Failed to send data via transport. Connection ${connection.id} socket is dead.`, null, TransportError.ConnectionFailed);
-      }
+      try{
+        let socket = connection.connector as WebSocket;
+        if(!socket || socket.readyState !== WebSocket.OPEN) {
+          self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
+          return new TransportErrorHandler(`Failed to send data via transport. Connection ${connection.id} socket is dead.`, null, TransportError.ConnectionFailed);
+        }
 
-      // Send data to client
-      socket.send(data);
-      self.onClientDataSend.invoke({ connection: connection, data: data });
-      return true;
+        // Send data to client
+        socket.send(data);
+        self.onClientDataSend.invoke({ connection: connection, data: data });
+        return true;
+      }catch(error : any) {
+        self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
+        return new TransportErrorHandler(`Failed to send data via transport. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ConnectionFailed);
+      }
     }
 
     // Single client
@@ -559,7 +564,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     skipUTF8Validation: false,
 
     // Reconnect options
-    reconnectOptions: {
+    reconnect: {
       autoReconnect : ParseUtils.bool(process?.env?.TRANSPORT_RECONNECT ?? "true"),
       maxAttempts: parseInt(process?.env?.TRANSPORT_RECONNECT_DELAY ?? "5"),
       delay: parseInt(process?.env?.TRANSPORT_RECONNECT_ATTEMPTS ?? "5000")
