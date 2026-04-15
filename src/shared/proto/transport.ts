@@ -210,7 +210,7 @@ export interface IClientTransport extends ITransport{
  * Basic Transport Options
  */
 export interface ITransportOptions {
-  protocol ? : string,
+  protocol ? : string;
   host ? : string;
   port ? : number;
   path ? : string;
