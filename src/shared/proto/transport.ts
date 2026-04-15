@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1007
+ * @build                 1008
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               15.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
@@ -188,8 +188,8 @@ export interface IServerTransport extends ITransport{
   onBeforeClientDataSent : BaseEvent<ClientData>;
 
   // Server transport methods
-  send(data : Uint8Array, to : ClientConnection | Set<ClientConnection>) : true | TransportErrorHandler;
-  sendById(data : Uint8Array, to : string | Set<string>) : true | TransportErrorHandler;
+  send(data: Uint8Array, to: ClientConnection | Set<ClientConnection>) : Promise<true | TransportErrorHandler>
+  sendById(data : Uint8Array, to : string | Set<string>) : Promise<true | TransportErrorHandler>;
 }
 
 /**

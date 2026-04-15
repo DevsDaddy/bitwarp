@@ -3,13 +3,13 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1011
+ * @build                 1012
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               14.04.2026
+ * @updated               15.04.2026
  */
 
-import { Logger } from '../shared';
+import { ClientData, ITransport, Logger, TransportErrorHandler } from '../shared';
 
 /**
  * Router Event Handler
@@ -20,6 +20,13 @@ type EventHandler<TArgs extends any[] = any[]> = (...args: TArgs) => void | Prom
  * Event map with args
  */
 interface EventMap {
+  // Transport Event Map
+  transportBeforeConnect : [];
+  transportConnected: [transport : ITransport];
+  transportError : [TransportErrorHandler];
+  transportBeforeDataSend : [ClientData];
+  transportDataSent : [ClientData];
+
   message: [data: string, from: string];
   connect: [];
   error: [error: Error];
