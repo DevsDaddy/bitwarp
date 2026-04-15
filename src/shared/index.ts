@@ -33,6 +33,15 @@ export * from "./proto/crypto";
 export * from "./proto/transport";
 //export * from "./proto/types";
 
+/* Export Protocol Packets */
+export * from "./proto/packets/handshake";
+export * from "./proto/packets/command";
+export * from "./proto/packets/event";
+export * from "./proto/packets/room";
+export * from "./proto/packets/binary";
+export * from "./proto/packets/object";
+export * from "./proto/packets/stream";
+
 /* Export Crypto Providers */
 //export * from "./crypto";
 

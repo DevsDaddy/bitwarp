@@ -32,10 +32,8 @@ export enum PacketType {
   SYNC_OBJECT = 0x6,
   SYNC_ACTION = 0x7,
   STREAM_CONTROL = 0x8,
-  RAW_BINARY = 0x9,
-  PING = 0xA,
-  PONG = 0xB,
-  // Reserved for future extensions 0xC-0xF
+  RAW_BINARY = 0x9
+  // Reserved for future extensions 0xA-0xF
 }
 
 /**
