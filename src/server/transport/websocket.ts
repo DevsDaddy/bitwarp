@@ -53,6 +53,12 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
   resend : boolean;
   resendTimer : number;
   resendPerIteration : number;
+
+  // Rate Limit
+  rateLimit : {
+    enabled : boolean;
+    maxConnections : number;
+  }
 }
 
 /**
@@ -125,6 +131,13 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
         // Subscribe to connector events
         connector.addListener("connection", (client : WebSocket) => {
+          if(self.options.rateLimit.enabled && self.options.rateLimit.maxConnections > 0){
+            if(self._connections.size > self.options.rateLimit.maxConnections){
+              client.close(1013, "Server overload")
+              return;
+            }
+          }
+
           self.handleConnection(client);
         });
         connector.addListener("close", () => {
@@ -595,6 +608,12 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     maxPayload : 104857600,
     noServer : false,
     skipUTF8Validation: false,
+
+    // Rate Limit Options
+    rateLimit: {
+      enabled: ParseUtils.bool(process?.env?.RATE_LIMIT ?? "true"),
+      maxConnections: parseInt(process?.env?.RATE_LIMIT_MAX_CONNECTIONS ?? "5000")
+    },
 
     // Reconnect options
     reconnect: {
