@@ -11,4 +11,11 @@
 /**
  * Hash Provider
  */
-export interface IHashProvider {}
+export interface HashProvider {}
+
+/**
+ * Crypto Provider
+ */
+export interface CryptoProvider {
+
+}

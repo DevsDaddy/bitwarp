@@ -19,7 +19,8 @@ import {
   ParseUtils,
   TransportCloseCode,
   TransportErrorHandler,
-  Performance, PERF_CONSTANTS, ClientData, ClientConnection, ClientDisconnect, HeaderEncoder, PacketType
+  Performance, PERF_CONSTANTS, ClientData, ClientConnection, ClientDisconnect, HeaderEncoder, PacketType,
+  BWeaveCompression
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
@@ -204,7 +205,7 @@ export class BitWarpServer {
    * @private
    */
   private handleRawConnection(connection : ClientConnection) {
-
+    // TODO: Handshake
   }
 
   /**
@@ -290,7 +291,8 @@ export class BitWarpServer {
       name : process?.env?.APPLICATION_NAME ?? "BitWarp Server",
       version : process?.env?.APPLICATION_VERSION ?? "1.0.0",
       debug : ParseUtils.bool(process?.env?.DEBUG_MODE ?? "true"),
-      logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error
+      logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
+      compression: new BWeaveCompression()
     }
   }
   // #endregion

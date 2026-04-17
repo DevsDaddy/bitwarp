@@ -31,7 +31,6 @@ export * from "./proto/peer";
 export * from "./proto/packet";
 export * from "./proto/crypto";
 export * from "./proto/transport";
-//export * from "./proto/types";
 
 /* Export Protocol Packets */
 export * from "./proto/packets/handshake";

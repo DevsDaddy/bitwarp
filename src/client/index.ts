@@ -11,7 +11,7 @@
 /* Import required modules */
 import {
   BaseEvent,
-  BitWarpOptions,
+  BitWarpOptions, BWeaveCompression,
   ErrorHandler,
   ErrorType,
   HandshakePacketData,
@@ -59,6 +59,7 @@ export class BitWarpClient {
   // Client state
   private _isConnected = false;
   private _isHandshakeComplete  = false;
+  private _isHandshakeStarted = false;
 
   // #region basic setup and fields
   /**
@@ -79,6 +80,8 @@ export class BitWarpClient {
     this._isDebug = this.options.debug ?? false;
     this._transport = (this.options.transport) ? this.options.transport as IClientTransport : new WebSocketClientTransport();
     this._isConnected = false;
+    this._isHandshakeComplete = false;
+    this._isHandshakeStarted = false;
   }
 
   // #region Client Fields
@@ -126,7 +129,7 @@ export class BitWarpClient {
       self.onInitialized.invoke();
 
       // Handshake
-      Logger.info("Start handshake")
+      self.startHandshake();
     });
     self.transport.onDataReceived.addListener((data) => {
       self.handleRawMessage(data);
@@ -265,6 +268,10 @@ export class BitWarpClient {
    * @private
    */
   private startHandshake(){
+    let self = this;
+    self._isHandshakeComplete = false;
+    self._isHandshakeStarted = true;
+
 
   }
 
@@ -295,7 +302,8 @@ export class BitWarpClient {
       name: "BitWarp Client",
       version: "1.0.0",
       debug: true,
-      logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error
+      logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
+      compression: new BWeaveCompression()
     }
   }
   // #endregion
