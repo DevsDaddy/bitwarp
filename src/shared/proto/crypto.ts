@@ -14,8 +14,35 @@
 export interface HashProvider {}
 
 /**
+ * Key Pair
+ */
+export interface KeyPair {
+  publicKey ? : Uint8Array;
+  privateKey ? : Uint8Array;
+}
+
+/**
+ * Crypto provider options
+ */
+export interface CryptoProviderOptions {}
+
+/**
  * Crypto Provider
  */
 export interface CryptoProvider {
+  // Key fields
+  generateKeyPair() : Promise<KeyPair>;
+  getPublicKey() : Promise<Uint8Array>;
+  getPrivateKey() : Promise<Uint8Array>;
 
+  // Work with sessions
+  initializeSession(peerPublicKey: Uint8Array, isInitiator: boolean): Promise<Uint8Array | null>;
+  finalizeSession(ciphertext : Uint8Array) : Promise<void>;
+
+  // Encrypt / Decrypt
+  encrypt(decryptedData: Uint8Array): Promise<Uint8Array>;
+  decrypt(encryptedData: Uint8Array): Promise<Uint8Array>;
+
+  // Dispose
+  dispose() : Promise<void>;
 }
