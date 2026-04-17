@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1001
+ * @build                 1029
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               13.04.2026
+ * @updated               17.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
@@ -32,8 +32,9 @@ export enum PacketType {
   SYNC_OBJECT = 0x6,
   SYNC_ACTION = 0x7,
   STREAM_CONTROL = 0x8,
-  RAW_BINARY = 0x9
-  // Reserved for future extensions 0xA-0xF
+  RAW_BINARY = 0x9,
+  ERROR = 0xA
+  // Reserved for future extensions 0xB-0xF
 }
 
 /**
@@ -62,6 +63,55 @@ export interface PacketHeader {
 export interface Packet<T = any> {
   header: PacketHeader;
   payload: T;
+}
+
+/**
+ * Packet Data interface
+ */
+export interface IPacketData {
+  header: ReturnType<typeof HeaderEncoder.read>;
+  body ? : Uint8Array;
+  payload ? : any;
+}
+
+/**
+ * Base packet implementation
+ */
+export class BasePacket {
+  /**
+   * Encode packet
+   * @param body {Uint8Array} Serialized packet body
+   * @param requestId {number} Request internal id
+   * @param flags {PacketFlag} Packet flags
+   * @param packetType {PacketType} Packet Type
+   * @returns {Uint8Array} Ready-to-use packet buffer
+   */
+  public static encode(body: Uint8Array | any, requestId = 0, flags = 0, packetType = PacketType.HANDSHAKE): Uint8Array {
+    if(!(body instanceof Uint8Array)) throw new Error(`Base packet class data argument must be a Uint8Array`);
+    const buf = new FlashBuffer();
+    HeaderEncoder.write(buf, {
+      type: packetType,
+      flags,
+      requestId,
+      payloadLength: body.byteLength,
+    });
+    buf.writeBytes(body);
+    return buf.toUint8Array();
+  }
+
+  /**
+   * Decode handshake packet
+   * @param buffer {Uint8Array} Packet buffer
+   * @returns {HandshakePacketData} Ready to parse packet
+   */
+  public static decode(buffer: Uint8Array): IPacketData {
+    const buf = new FlashBuffer();
+    buf.writeBytes(buffer);
+    buf.reset();
+    const header = HeaderEncoder.read(buf);
+    const body = buf.readBytes(header.payloadLength);
+    return { header, body };
+  }
 }
 
 /**

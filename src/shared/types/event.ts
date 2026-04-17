@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1016
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               17.04.2026
  */
 import { Logger } from '../debug/logger';
 
@@ -68,7 +68,7 @@ export class BaseEvent<EventData = void> implements IBaseListener, IBaseInvoker 
       try {
         listener(data);
       } catch (error : any) {
-        Logger.error(`Error in event listener: ${error?.message ?? "Unknown error"}`);
+        Logger.error(`Error in event listener: ${error?.message ?? "Unknown error"}`, error);
       }
     });
   }
@@ -89,7 +89,7 @@ export class BaseEvent<EventData = void> implements IBaseListener, IBaseInvoker 
           }));
         }
       } catch (error : any) {
-        Logger.error(`Error in event listener: ${error?.message ?? "Unknown error"}`);
+        Logger.error(`Error in event listener: ${error?.message ?? "Unknown error"}`, error);
       }
     });
 

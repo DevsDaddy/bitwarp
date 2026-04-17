@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1008
+ * @build                 1036
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               15.04.2026
+ * @updated               17.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
@@ -15,6 +15,7 @@ import { ClientConnection, ClientData, ClientDisconnect } from './peer';
 import { Packet, RawPacket } from './packet';
 import { MiddlewareHandler } from '../types/common';
 import { Logger } from '../debug/logger';
+import { ErrorPacket } from './packets/error';
 
 /**
  * Basic Transport Errors
@@ -91,6 +92,18 @@ export class TransportErrorHandler {
   }
 
   /**
+   * Convert error handler to buffer
+   * @returns {Uint8Array} Error buffer
+   */
+  public toBuffer() : Uint8Array {
+    return ErrorPacket.encode({
+      message: this.message,
+      stack: this?.stack?.toString() ?? "",
+      code: this.type
+    });
+  }
+
+  /**
    * Try to parse from JSON
    * @param jsonData
    */
@@ -110,6 +123,16 @@ export class TransportErrorHandler {
    */
   public static fromError(error : Error) : TransportErrorHandler {
     return new TransportErrorHandler(error.message, null, TransportError.Unknown);
+  }
+
+  /**
+   * Get error handler from buffer
+   * @param buffer {Uint8Array} Error buffer
+   * @returns {TransportErrorHandler} Error handler
+   */
+  public static fromBuffer(buffer : Uint8Array) : TransportErrorHandler {
+    const decoded = ErrorPacket.decode(buffer);
+    return new TransportErrorHandler(decoded?.payload?.message ?? "Unknown error", decoded?.payload?.stack ?? null, decoded?.payload?.code as TransportError ?? TransportError.Unknown)
   }
 
   /**

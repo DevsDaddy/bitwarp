@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1010
+ * @build                 1038
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               13.04.2026
+ * @updated               17.04.2026
  */
 /* Import required modules */
 import {
@@ -19,10 +19,11 @@ import {
   ParseUtils,
   TransportCloseCode,
   TransportErrorHandler,
-  Performance, PERF_CONSTANTS, ClientData, ClientConnection, ClientDisconnect
+  Performance, PERF_CONSTANTS, ClientData, ClientConnection, ClientDisconnect, HeaderEncoder, PacketType
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
+import { FlashBuffer } from 'flash-buffer';
 
 /* Export Libraries */
 export * from "./transport/websocket";
@@ -37,9 +38,20 @@ export interface BitWarpServerOptions extends BitWarpOptions{
 }
 
 /**
+ * Client Error
+ */
+export interface ClientError {
+  connection : ClientConnection;
+  error : ErrorHandler;
+}
+
+/**
  * BitWarp Server Implementation
  */
 export class BitWarpServer {
+  // Server events
+  public onClientError : BaseEvent<ClientError> = new BaseEvent<ClientError>();
+
   // Server setup
   private readonly _isDebug : boolean;
   private readonly _options: BitWarpServerOptions;
@@ -218,7 +230,54 @@ export class BitWarpServer {
       clientData.data = self._compressor.decompress(clientData.data);
     }
 
+    // Get message buffer
+    const messageBuffer = new FlashBuffer();
+    messageBuffer.writeBytes(clientData.data);
+    messageBuffer.reset();
 
+    // Read header and payload
+    const headerData = HeaderEncoder.read(messageBuffer);
+    switch (headerData.type){
+      case PacketType.COMMAND : {
+        break;
+      }
+      case PacketType.COMMAND_RESPONSE: {
+        break;
+      }
+      case PacketType.ERROR: {
+        const errorData = ErrorHandler.fromBuffer(clientData.data);
+        Logger.error(`Received an error from connection: ${clientData.connection.id}. Error: ${errorData?.message ?? "Unknown error"}`);
+        self.onClientError.invoke({ connection: clientData.connection, error: errorData });
+        break;
+      }
+      case PacketType.EVENT: {
+
+        break;
+      }
+      case PacketType.HANDSHAKE: {
+        break;
+      }
+      case PacketType.RAW_BINARY: {
+        break;
+      }
+      case PacketType.ROOM: {
+        break;
+      }
+      case PacketType.STREAM_CONTROL: {
+        break;
+      }
+      case PacketType.SYNC_ACTION: {
+        break;
+      }
+      case PacketType.SYNC_OBJECT: {
+        break;
+      }
+      default: {
+        Logger.error(`Wrong packet type received from connection ${clientData.connection.id}: ${headerData.type}`);
+        self.onError.invoke(new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ServerException));
+        return;
+      }
+    }
   }
   // #endregion
 

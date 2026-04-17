@@ -3,11 +3,13 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1028
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               17.04.2026
  */
+import { ErrorPacket } from '../proto/packets/error';
+
 /**
  * Basic Error Types
  */
@@ -72,6 +74,18 @@ export class ErrorHandler {
   }
 
   /**
+   * Convert error handler to buffer
+   * @returns {Uint8Array} Error buffer
+   */
+  public toBuffer() : Uint8Array {
+    return ErrorPacket.encode({
+      message: this.message,
+      stack: this?.stack?.toString() ?? "",
+      code: this.type
+    });
+  }
+
+  /**
    * Try to parse from JSON
    * @param jsonData
    */
@@ -91,6 +105,16 @@ export class ErrorHandler {
    */
   public static fromError(error : Error) : ErrorHandler {
     return new ErrorHandler(error.message, null, ErrorType.Unknown);
+  }
+
+  /**
+   * Get error handler from buffer
+   * @param buffer {Uint8Array} Error buffer
+   * @returns {ErrorHandler} Error handler
+   */
+  public static fromBuffer(buffer : Uint8Array) : ErrorHandler {
+    const decoded = ErrorPacket.decode(buffer);
+    return new ErrorHandler(decoded?.payload?.message ?? "Unknown error", decoded?.payload?.stack ?? null, decoded?.payload?.code as ErrorType ?? ErrorType.Unknown)
   }
 
   /**

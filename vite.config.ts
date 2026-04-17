@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1015
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               17.04.2026
  */
 /* Import modules */
 import { defineConfig } from 'vite';
@@ -17,6 +17,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: 'demo/client',
   server: {
+    headers: {
+      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Cross-Origin-Opener-Policy": "same-origin",
+    },
     watch: {
       usePolling: true,
     },

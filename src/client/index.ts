@@ -3,23 +3,31 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1010
+ * @build                 1038
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               13.04.2026
+ * @updated               17.04.2026
  */
 /* Import required modules */
 import {
   BaseEvent,
   BitWarpOptions,
   ErrorHandler,
-  ErrorType, IClientTransport, ICompressionProvider,
+  ErrorType,
+  HandshakePacketData,
+  HeaderEncoder,
+  IClientTransport,
+  ICompressionProvider,
   Logger,
   LogLevel,
-  TransportCloseCode, TransportErrorHandler,
-  Performance, PERF_CONSTANTS
+  PacketType,
+  PERF_CONSTANTS,
+  Performance,
+  TransportCloseCode,
+  TransportErrorHandler
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
+import { FlashBuffer } from 'flash-buffer';
 
 /* Export Libraries */
 export * from "./transport/websocket";
@@ -50,6 +58,7 @@ export class BitWarpClient {
 
   // Client state
   private _isConnected = false;
+  private _isHandshakeComplete  = false;
 
   // #region basic setup and fields
   /**
@@ -81,6 +90,7 @@ export class BitWarpClient {
   public get transport (): IClientTransport { return this._transport };
   public get isConnected (): boolean { return this._isConnected; };
   public get isDebug() : boolean { return this._isDebug; };
+  public get isHandshakeComplete (): boolean { return this._isHandshakeComplete; };
   // #endregion
 
   // #region Client connection
@@ -115,7 +125,8 @@ export class BitWarpClient {
       Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
 
-      // TODO: Handshake with server
+      // Handshake
+      Logger.info("Start handshake")
     });
     self.transport.onDataReceived.addListener((data) => {
       self.handleRawMessage(data);
@@ -173,7 +184,6 @@ export class BitWarpClient {
   // #endregion
 
   // #region Work with packets
-
   /**
    * Handle raw message from server
    * @param message {Uint8Array} Message data
@@ -182,12 +192,96 @@ export class BitWarpClient {
   private handleRawMessage(message : Uint8Array) {
     let self = this;
 
-    // Check compression
-    if(self.options.compression){
-      if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
-      message = self._compressor.decompress(message);
-    }
+    try {
+      // Check compression
+      if(self.options.compression){
+        try{
+          if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
+          message = self._compressor.decompress(message);
+        }catch(error : any){
+          Logger.error(`Failed to decompress message. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, ErrorType.ClientException);
+        }
+      }
 
+      // Get message buffer
+      const messageBuffer = new FlashBuffer();
+      messageBuffer.writeBytes(message);
+      messageBuffer.reset();
+
+      // Read header and payload
+      const headerData = HeaderEncoder.read(messageBuffer);
+      switch (headerData.type){
+        case PacketType.COMMAND : {
+          break;
+        }
+        case PacketType.COMMAND_RESPONSE: {
+          break;
+        }
+        case PacketType.ERROR: {
+          const errorData = ErrorHandler.fromBuffer(message);
+          Logger.error(`Error received from server. Error: ${errorData?.message ?? "Unknown error"}`);
+          self.onError.invoke(errorData);
+          break;
+        }
+        case PacketType.EVENT: {
+
+          break;
+        }
+        case PacketType.HANDSHAKE: {
+          break;
+        }
+        case PacketType.RAW_BINARY: {
+          break;
+        }
+        case PacketType.ROOM: {
+          break;
+        }
+        case PacketType.STREAM_CONTROL: {
+          break;
+        }
+        case PacketType.SYNC_ACTION: {
+          break;
+        }
+        case PacketType.SYNC_OBJECT: {
+          break;
+        }
+        default: {
+          Logger.error(`Wrong packet type received: ${headerData.type}`);
+          self.onError.invoke(new ErrorHandler(`Failed to deserialize packet from server. Unknown packet type`, null, ErrorType.ServerException));
+          return;
+        }
+      }
+    }catch (error : any) {
+      const errorData = ErrorHandler.fromError(error);
+      Logger.error(`Failed to process raw message. Error: ${error?.message ?? "Unknown error"}`, error);
+      self.onError.invoke(errorData);
+    }
+  }
+  // #endregion
+
+  // #region Handshake
+  /**
+   * Start handshake
+   * @private
+   */
+  private startHandshake(){
+
+  }
+
+  /**
+   * Process handshake
+   * @param data {HandshakePacketData} Handshake packet data
+   * @private
+   */
+  private processHandshake(data : HandshakePacketData){
+
+  }
+
+  /**
+   * Finalize handshake
+   * @private
+   */
+  private endHandshake(){
 
   }
   // #endregion
