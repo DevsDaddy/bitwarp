@@ -73,6 +73,7 @@ export class BitWarpClient {
 
   // Client state
   private _isConnected = false;
+  private _connectedTime : number = 0;
   private _isHandshakeComplete  = false;
   private _handshakeStep : HandshakeStep = HandshakeStep.INIT;
 
@@ -105,6 +106,7 @@ export class BitWarpClient {
     this._isConnected = false;
     this._isHandshakeComplete = false;
     this._handshakeStep = HandshakeStep.INIT;
+    this._connectedTime = 0;
   }
 
   // #region Client Fields
@@ -117,6 +119,7 @@ export class BitWarpClient {
   public get isConnected (): boolean { return this._isConnected; };
   public get isDebug() : boolean { return this._isDebug; };
   public get isHandshakeComplete (): boolean { return this._isHandshakeComplete; };
+  public get uptime() : number { return (!this._isConnected || this._connectedTime === 0) ? 0 : Date.now() - this._connectedTime; }
   // #endregion
 
   // #region Client connection
@@ -150,6 +153,7 @@ export class BitWarpClient {
       self._performance.mark(PERF_CONSTANTS.TRANSPORT_CONNECTED);
       Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
+      self._connectedTime = Date.now();
 
       // Handshake
       await self.startHandshake();
@@ -183,6 +187,7 @@ export class BitWarpClient {
     await this.transport.disconnect(TransportCloseCode.ClosedByClient);
     await this.transport.dispose();
     this._isConnected = false;
+    this._connectedTime = 0;
   }
 
   /**

@@ -92,6 +92,7 @@ export class BitWarpServer {
 
   // Server state
   private _isStarted = false;
+  private _connectedTime : number = 0;
 
   // Encryptors
   private _encryptProvider ? : CryptoProvider;
@@ -122,6 +123,7 @@ export class BitWarpServer {
     this._isDebug = this.options.debug ?? false;
     this._transport = (this.options.transport) ? this.options.transport as IServerTransport : new WebSocketServerTransport();
     this._isStarted = false;
+    this._connectedTime = 0;
   }
 
   // #region Server Fields
@@ -133,6 +135,7 @@ export class BitWarpServer {
   public get transport (): IServerTransport { return this._transport };
   public get isStarted (): boolean { return this._isStarted; }
   public get isDebug (): boolean { return this._isDebug; }
+  public get uptime() : number { return (!this._isStarted || this._connectedTime === 0) ? 0 : Date.now() - this._connectedTime; }
   // #endregion
 
   // #region Server connection
@@ -173,6 +176,8 @@ export class BitWarpServer {
     })
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Server is successfully started`);
+      self._connectedTime = Date.now();
+      self._isStarted = true;
       self._performance.mark(PERF_CONSTANTS.TRANSPORT_CONNECTED);
       Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
@@ -203,6 +208,7 @@ export class BitWarpServer {
     await this.transport.disconnect(TransportCloseCode.ClosedByServer);
     await this.transport.dispose();
     this._isStarted = false;
+    this._connectedTime = 0;
   }
 
   /**
