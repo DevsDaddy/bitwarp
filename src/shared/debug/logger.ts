@@ -202,7 +202,7 @@ export class Logger {
 
     // Prepare Prefix
     let prefix =
-      this.formatMessage(`[ BITWARP LOG ] (${FormatUtils.formatDate(new Date(), "{{dd}}.{{mm}} {{HH}}:{{ii}}:{{ss}}")}) `, {
+      this.formatMessage(` BITWARP LOG (${FormatUtils.formatDate(new Date(), "{{dd}}.{{mm}} {{HH}}:{{ii}}:{{ss}}")}) `, {
         backgroundColor: Color.fromString("#33FFFF"),
         fontColor: Color.black(),
         upperCase: true

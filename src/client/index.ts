@@ -25,7 +25,7 @@ import {
   IClientTransport,
   ICompressionProvider,
   Logger,
-  LogLevel,
+  LogLevel, PacketAnalyzer,
   PacketType,
   PERF_CONSTANTS,
   Performance,
@@ -91,6 +91,7 @@ export class BitWarpClient {
     // Initial checks
     if(!this.options.debug) Logger.toggle(false);
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
+    if(!this.options.analyzePackets) PacketAnalyzer.toggle(false);
 
     // Init compressor
     if(this.options.compression) this._compressor = this.options.compression;
@@ -409,6 +410,7 @@ export class BitWarpClient {
       name: "BitWarp Client",
       version: "1.0.0",
       debug: true,
+      analyzePackets: true,
       logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),

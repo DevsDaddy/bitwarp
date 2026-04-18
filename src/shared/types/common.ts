@@ -23,6 +23,7 @@ export interface BitWarpOptions {
   // Debug options
   debug ? : boolean;
   logLevel ? : LogLevel;
+  analyzePackets ? : boolean;
 
   // Basic options
   transport ? : ITransport;

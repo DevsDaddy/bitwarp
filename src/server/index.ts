@@ -19,7 +19,7 @@ import {
   CryptoProvider,
   CryptoProviderOptions,
   ErrorHandler,
-  ErrorType,
+  ErrorType, GeneralPacketNames,
   HandshakePacket, HandshakePacketData,
   HandshakePayload,
   HandshakeStep,
@@ -27,7 +27,7 @@ import {
   ICompressionProvider,
   IServerTransport,
   Logger,
-  LogLevel,
+  LogLevel, PacketAnalyzer,
   PacketType,
   ParseUtils,
   Peer,
@@ -110,6 +110,7 @@ export class BitWarpServer {
     // Initial checks
     if(!this.options.debug) Logger.toggle(false);
     if(this.options.logLevel !== Logger.level) Logger.level = this.options.logLevel as LogLevel;
+    if(!this.options.analyzePackets) PacketAnalyzer.toggle(false);
 
     // Init compressor
     if(this.options.compression) this._compressor = this.options.compression;
@@ -260,6 +261,8 @@ export class BitWarpServer {
     let self = this;
     try {
       // Check compression
+      let packetTime = performance.now();
+      let compressedSize = clientData.data.byteLength;
       if(self.options.compression){
         if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
         clientData.data = self._compressor.decompress(clientData.data);
@@ -292,6 +295,16 @@ export class BitWarpServer {
         }
         case PacketType.HANDSHAKE: {
           const handshakeData = HandshakePacket.decode(clientData.data);
+          PacketAnalyzer.create(GeneralPacketNames.HANDSHAKE + handshakeData.payload.step, {
+            packet: handshakeData,
+            rawPacket: clientData.data,
+            packetReceived: packetTime,
+            packetReady: performance.now(),
+            isCompressed: !!self.options.compression,
+            isEncrypted: !!self.options.cryptoProvider,
+            compressedSize: compressedSize
+          }, true);
+          PacketAnalyzer.logInfo(GeneralPacketNames.HANDSHAKE + handshakeData.payload.step);
           await self.handleHandshake(clientData.connection, handshakeData);
           break;
         }
@@ -522,6 +535,7 @@ export class BitWarpServer {
       name : process?.env?.APPLICATION_NAME ?? "BitWarp Server",
       version : process?.env?.APPLICATION_VERSION ?? "1.0.0",
       debug : ParseUtils.bool(process?.env?.DEBUG_MODE ?? "true"),
+      analyzePackets : ParseUtils.bool(process?.env?.ANALYZE_PACKETS ?? "true"),
       logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),
