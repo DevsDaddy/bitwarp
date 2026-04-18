@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1057
+ * @build                 1058
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               18.04.2026
@@ -227,7 +227,7 @@ export class BitWarpClient {
       // Check compression
       if(self.options.compression){
         try{
-          if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
+          if(!self._compressor) return Promise.reject(new Error("Failed to decompress message. Compressor is not initialized."));
           message = self._compressor.decompress(message);
         }catch(error : any){
           Logger.error(`Failed to decompress message. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, ErrorType.ClientException);
@@ -239,8 +239,22 @@ export class BitWarpClient {
       messageBuffer.writeBytes(message);
       messageBuffer.reset();
 
-      // Read header and payload
+      // Read header
       const headerData = HeaderEncoder.read(messageBuffer);
+
+      // Check encryptor exists but skip for handshake and error
+      if(self.options.cryptoProvider && headerData.type !== PacketType.HANDSHAKE && headerData.type !== PacketType.ERROR) {
+        // Check encryptor
+        let encryptor = self._encryptProvider;
+        if(!encryptor){
+          let errorData = new ErrorHandler(`Failed to deserialize packet from server. Encryptor is not initialized.`, null, ErrorType.HandshakeError)
+          Logger.error(`Failed to process raw message from server: Handshake error for peer.`);
+          self.onError.invoke(errorData);
+          return Promise.reject(errorData.toError());
+        }
+      }
+
+      // Switch by type
       switch (headerData.type){
         case PacketType.COMMAND : {
           break;
@@ -382,12 +396,7 @@ export class BitWarpClient {
         break;
       }
       case HandshakeStep.FINISH : {
-        self._handshakeStep = HandshakeStep.FINISH;
-        self._isHandshakeComplete = true;
-        await self.onHandshakeComplete.invokeAsync();
-
-        self._performance.mark(PERF_CONSTANTS.HANDSHAKE_COMPLETE);
-        Logger.success(`Handshake completed in ${self._performance.measure(PERF_CONSTANTS.HANDSHAKE_MEASURE, PERF_CONSTANTS.HANDSHAKE_STARTED, PERF_CONSTANTS.HANDSHAKE_COMPLETE)} ms. Ready for messaging with server.`);
+        await self.endHandshake();
         break;
       }
       default: {
@@ -402,7 +411,13 @@ export class BitWarpClient {
    * @private
    */
   private async endHandshake(){
+    let self = this;
+    self._handshakeStep = HandshakeStep.FINISH;
+    self._isHandshakeComplete = true;
+    await self.onHandshakeComplete.invokeAsync();
 
+    self._performance.mark(PERF_CONSTANTS.HANDSHAKE_COMPLETE);
+    Logger.success(`Handshake completed in ${self._performance.measure(PERF_CONSTANTS.HANDSHAKE_MEASURE, PERF_CONSTANTS.HANDSHAKE_STARTED, PERF_CONSTANTS.HANDSHAKE_COMPLETE)} ms. Ready for messaging with server.`);
   }
   // #endregion
 
@@ -415,7 +430,7 @@ export class BitWarpClient {
       name: "BitWarp Client",
       version: "1.0.0",
       debug: true,
-      analyzePackets: true,
+      analyzePackets: false,
       logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),

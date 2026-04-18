@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1057
+ * @build                 1058
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               18.04.2026
@@ -19,15 +19,17 @@ import {
   CryptoProvider,
   CryptoProviderOptions,
   ErrorHandler,
-  ErrorType, GeneralPacketNames,
-  HandshakePacket, HandshakePacketData,
-  HandshakePayload,
+  ErrorType,
+  GeneralPacketNames,
+  HandshakePacket,
+  HandshakePacketData,
   HandshakeStep,
   HeaderEncoder,
   ICompressionProvider,
   IServerTransport,
   Logger,
-  LogLevel, PacketAnalyzer,
+  LogLevel,
+  PacketAnalyzer,
   PacketType,
   ParseUtils,
   Peer,
@@ -186,9 +188,10 @@ export class BitWarpServer {
       Logger.error(`BitWarp Server Error: ${error?.message ?? "Unknown error"}`);
       self.onInitializationError.invoke(new ErrorHandler(error.message, error?.stack ?? null, ErrorType.ServerException));
     });
-    self.transport.onDisconnected.addListener((reason) => {
+    self.transport.onDisconnected.addListener(async (reason) => {
       if(reason instanceof TransportErrorHandler) {
         Logger.error(`BitWarp Server Stop Error: ${reason?.message ?? "Unknown error"}`);
+        await Router.invoke("error", self, reason);
         self.onError.invoke(new ErrorHandler(reason.message, reason?.stack ?? null, ErrorType.ServerException));
         return;
       }
@@ -270,7 +273,7 @@ export class BitWarpServer {
       let packetTime = performance.now();
       let compressedSize = clientData.data.byteLength;
       if(self.options.compression){
-        if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
+        if(!self._compressor) return Promise.reject(new Error("Failed to decompress message. Compressor is not initialized."));
         clientData.data = self._compressor.decompress(clientData.data);
       }
 
@@ -279,8 +282,24 @@ export class BitWarpServer {
       messageBuffer.writeBytes(clientData.data);
       messageBuffer.reset();
 
-      // Read header and payload
+      // Read header
       const headerData = HeaderEncoder.read(messageBuffer);
+
+      // Check encryptor exists but skip for handshake and error
+      if(self.options.cryptoProvider && headerData.type !== PacketType.HANDSHAKE && headerData.type !== PacketType.ERROR) {
+        // Check encryptor
+        let encryptor = self.getPeerByConnectionId(clientData.connection.id)?.encryptor;
+        if(!encryptor){
+          let errorData = new ErrorHandler(`Failed to deserialize packet from client. Encryptor is not initialized. Retry handshake.`, null, ErrorType.HandshakeError)
+          Logger.error(`Failed to process raw message for ${clientData.connection.id}: Handshake error for peer.`);
+          await Router.invoke("error", self, errorData);
+          self.onError.invoke(errorData);
+          try { await self.transport.send(self.preparePacket(errorData.toBuffer()), clientData.connection) }catch{}
+          return Promise.reject(errorData.toError());
+        }
+      }
+
+      // Switch by header type
       switch (headerData.type){
         case PacketType.COMMAND : {
           break;
@@ -332,6 +351,7 @@ export class BitWarpServer {
         default: {
           let error = new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ServerException);
           Logger.error(`Wrong packet type received from connection ${clientData.connection.id}: ${headerData.type}`);
+          await Router.invoke("error", self, error);
           self.onError.invoke(error);
           await self.transport.send(self.preparePacket(error.toBuffer()), clientData.connection);
           return;
@@ -340,6 +360,7 @@ export class BitWarpServer {
     }catch (error : any){
       let errorData = new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ClientException)
       Logger.error(`Failed to process raw message for ${clientData.connection.id}: ${error?.message ?? "Unknown error"}`);
+      await Router.invoke("error", self, errorData);
       self.onError.invoke(errorData);
       try { await self.transport.send(self.preparePacket(errorData.toBuffer()), clientData.connection) }catch{}
       return Promise.reject(error);
@@ -371,7 +392,7 @@ export class BitWarpServer {
     let self = this;
 
     // Call router middleware
-    await Router.invoke("handshake", clientData, packet);
+    await Router.invoke("handshake", self, clientData, packet);
 
     // Has peer data - recreate
     let handshakeData = packet.payload;
@@ -541,7 +562,7 @@ export class BitWarpServer {
       name : process?.env?.APPLICATION_NAME ?? "BitWarp Server",
       version : process?.env?.APPLICATION_VERSION ?? "1.0.0",
       debug : ParseUtils.bool(process?.env?.DEBUG_MODE ?? "true"),
-      analyzePackets : ParseUtils.bool(process?.env?.ANALYZE_PACKETS ?? "true"),
+      analyzePackets : ParseUtils.bool(process?.env?.ANALYZE_PACKETS ?? "false"),
       logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),

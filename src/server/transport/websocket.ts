@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1031
+ * @build                 1032
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               18.04.2026
@@ -111,7 +111,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         self.stopResendQueue();
         self._resendQueue.clear();
         self._connections.clear();
-        await Router.invoke("transportBeforeConnect");
+        await Router.invoke("transportBeforeConnect", self);
         self.onBeforeConnected.invoke();
         let currentOptions = self.options;
         let hostUrl = `${currentOptions.protocol}${currentOptions.host}`;
@@ -145,8 +145,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
           self.stopResendQueue();
           self._resendQueue.clear();
           self._connections.clear();
-          self.dispose().then(()=>{
-            self.onDisconnected.invoke(TransportCloseCode.ClosedByServer);
+          self.dispose().then(async ()=>{
+            await self.onDisconnected.invokeAsync(TransportCloseCode.ClosedByServer);
           })
         });
         connector.addListener("error", async (error) => {
@@ -165,7 +165,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
           // Dispose before error
           self.dispose().then(async ()=>{
-            await Router.invoke("transportError", err);
+            await Router.invoke("transportError", self, err);
             self.onError.invoke(err);
             resolve(err);
           });
@@ -181,7 +181,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         });
         connector.addListener("wsClientError", async (error) => {
           let err = new TransportErrorHandler(`WebSocket Server transport error. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ClientException);
-          await Router.invoke("transportError", err);
+          await Router.invoke("transportError", self, err);
           self.onError.invoke(err);
           resolve(err);
         });
@@ -314,11 +314,11 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
           // Send data to client
           await self.invokeMiddleware(connection, data);
-          await Router.invoke("transportBeforeDataSend", { connection: connection, data: data });
+          await Router.invoke("transportBeforeDataSend", self, { connection: connection, data: data });
           self.onBeforeClientDataSent.invoke({ connection: connection, data: data});
           socket.send(data);
           self.onClientDataSend.invoke({ connection: connection, data: data });
-          await Router.invoke("transportDataSent", { connection: connection, data: data });
+          await Router.invoke("transportDataSent", self, { connection: connection, data: data });
           resolve(true);
           return;
         }catch(error : any) {

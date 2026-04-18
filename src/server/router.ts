@@ -3,13 +3,14 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1012
+ * @build                 1013
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               15.04.2026
+ * @updated               18.04.2026
  */
 
-import { ClientData, HandshakePacketData, ITransport, Logger, TransportErrorHandler } from '../shared';
+import { ClientData, ErrorHandler, HandshakePacketData, ITransport, Logger, TransportErrorHandler } from '../shared';
+import { BitWarpServer } from './index';
 
 /**
  * Router Event Handler
@@ -21,18 +22,17 @@ type EventHandler<TArgs extends any[] = any[]> = (...args: TArgs) => void | Prom
  */
 interface EventMap {
   // Transport Event Map
-  transportBeforeConnect : [];
+  transportBeforeConnect : [transport : ITransport];
   transportConnected: [transport : ITransport];
-  transportError : [TransportErrorHandler];
-  transportBeforeDataSend : [ClientData];
-  transportDataSent : [ClientData];
+  transportError : [transport : ITransport, error : TransportErrorHandler];
+  transportBeforeDataSend : [transport: ITransport, clientData : ClientData];
+  transportDataSent : [transport : ITransport, clientData : ClientData];
+
+  // Server Routes
+  error : [server : BitWarpServer, error : ErrorHandler];
 
   // Handshake
-  handshake : [ClientData, HandshakePacketData];
-
-  message: [data: string, from: string];
-  connect: [];
-  error: [error: Error];
+  handshake : [server : BitWarpServer, clientData : ClientData, handshakeData : HandshakePacketData];
 }
 
 /**

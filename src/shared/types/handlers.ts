@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1028
+ * @build                 1029
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 import { ErrorPacket } from '../proto/packets/error';
 
@@ -17,6 +17,7 @@ export enum ErrorType {
   SystemException = 0,
   ClientException = 1,
   ServerException = 2,
+  HandshakeError = 3,
   Unknown = 99
 }
 
