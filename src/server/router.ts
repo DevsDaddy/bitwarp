@@ -9,7 +9,7 @@
  * @updated               15.04.2026
  */
 
-import { ClientData, ITransport, Logger, TransportErrorHandler } from '../shared';
+import { ClientData, HandshakePacketData, ITransport, Logger, TransportErrorHandler } from '../shared';
 
 /**
  * Router Event Handler
@@ -26,6 +26,9 @@ interface EventMap {
   transportError : [TransportErrorHandler];
   transportBeforeDataSend : [ClientData];
   transportDataSent : [ClientData];
+
+  // Handshake
+  handshake : [ClientData, HandshakePacketData];
 
   message: [data: string, from: string];
   connect: [];
@@ -44,9 +47,9 @@ export class Router {
    * @param eventType {any} Event type
    * @param handler {EventHandler} Event Handler
    */
-  public static onEvent<K extends keyof EventMap>(eventType: K, handler: EventHandler<EventMap[K]>): void;
-  public static onEvent(eventType: string, handler: EventHandler): void;
-  public static onEvent(eventType: string, handler: EventHandler): void {
+  public static on<K extends keyof EventMap>(eventType: K, handler: EventHandler<EventMap[K]>): void;
+  public static on(eventType: string, handler: EventHandler): void;
+  public static on(eventType: string, handler: EventHandler): void {
     if (!this.handlers.has(eventType)) {
       this.handlers.set(eventType, new Set());
     }
@@ -58,9 +61,9 @@ export class Router {
    * @param eventType {any} Event type
    * @param handler {EventHandler} Event handler
    */
-  public static offEvent<K extends keyof EventMap>(eventType: K, handler: EventHandler<EventMap[K]>): void;
-  public static offEvent(eventType: string, handler: EventHandler): void;
-  public static offEvent(eventType: string, handler: EventHandler): void {
+  public static off<K extends keyof EventMap>(eventType: K, handler: EventHandler<EventMap[K]>): void;
+  public static off(eventType: string, handler: EventHandler): void;
+  public static off(eventType: string, handler: EventHandler): void {
     const handlers = this.handlers.get(eventType);
     if (handlers) {
       handlers.delete(handler);
