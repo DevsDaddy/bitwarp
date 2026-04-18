@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1029
+ * @build                 1048
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
@@ -28,7 +28,6 @@ export enum HandshakeStep {
 export interface HandshakeInit {
   step: HandshakeStep.INIT;
   clientPublicKey: Uint8Array;
-  supportedVersions: number[];
   protocolVersion: number;
 }
 
@@ -38,9 +37,6 @@ export interface HandshakeInit {
 export interface HandshakeResponse {
   step: HandshakeStep.RESPONSE;
   serverPublicKey: Uint8Array;
-  sessionToken?: string;
-  sessionTokenLength?: number;
-  serverVersion: number;
   protocolVersion: number;
 }
 
@@ -49,7 +45,8 @@ export interface HandshakeResponse {
  */
 export interface HandshakeFinish {
   step: HandshakeStep.FINISH;
-  // Может содержать проверочные данные
+  protocolVersion: number;
+  cipherText : Uint8Array;
 }
 
 /**
@@ -84,25 +81,20 @@ export class HandshakePacket extends BasePacket {
         buf.writeUint16(PROTOCOL_VERSION, true);
         buf.writeUint16(init.clientPublicKey.byteLength, true);
         buf.writeBytes(init.clientPublicKey);
-        buf.writeUint8(init.supportedVersions.length);
-        for (const v of init.supportedVersions) {
-          buf.writeUint8(v);
-        }
         break;
       }
       case HandshakeStep.RESPONSE: {
         const resp = payload as HandshakeResponse;
-        const sessionToken = resp.sessionToken || '';
         buf.writeUint16(PROTOCOL_VERSION, true);
         buf.writeUint16(resp.serverPublicKey.byteLength, true);
         buf.writeBytes(resp.serverPublicKey);
-        buf.writeUint8(resp.serverVersion);
-        buf.writeUint16(sessionToken.length)
-        buf.writeString(sessionToken, 'utf-8', true);
         break;
       }
       case HandshakeStep.FINISH: {
-        // Пока пусто
+        const resp = payload as HandshakeFinish;
+        buf.writeUint16(PROTOCOL_VERSION, true);
+        buf.writeUint16(resp.cipherText.byteLength, true);
+        buf.writeBytes(resp.cipherText);
         break;
       }
     }
@@ -127,24 +119,19 @@ export class HandshakePacket extends BasePacket {
         const protocolVersion = buf.readUint16(true);
         const keyLen = buf.readUint16(true);
         const clientPublicKey = buf.readBytes(keyLen);
-        const versionsCount = buf.readUint8();
-        const supportedVersions: number[] = [];
-        for (let i = 0; i < versionsCount; i++) {
-          supportedVersions.push(buf.readUint8());
-        }
-        return { protocolVersion, step, clientPublicKey, supportedVersions };
+        return { protocolVersion, step, clientPublicKey };
       }
       case HandshakeStep.RESPONSE: {
         const protocolVersion = buf.readUint16(true);
         const keyLen = buf.readUint16(true);
         const serverPublicKey = buf.readBytes(keyLen);
-        const serverVersion = buf.readUint8();
-        const sessionTokenLength = buf.readUint16(true);
-        const sessionToken = buf.readString(sessionTokenLength, "utf-8");
-        return { protocolVersion, step, serverPublicKey, serverVersion, sessionToken, sessionTokenLength };
+        return { protocolVersion, step, serverPublicKey };
       }
       case HandshakeStep.FINISH:
-        return { step };
+        const protocolVersion = buf.readUint16(true);
+        const keyLen = buf.readUint16(true);
+        const cipherText = buf.readBytes(keyLen);
+        return { protocolVersion, step, cipherText };
       default:
         throw new Error(`Unknown handshake step: ${step}`);
     }

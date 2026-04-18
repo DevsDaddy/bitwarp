@@ -3,28 +3,46 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1038
+ * @build                 1057
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import {
   BaseEvent,
   BitWarpOptions,
+  BWeaveCompression,
+  ClientConnection,
+  ClientData,
+  ClientDisconnect,
+  CryptoProvider,
+  CryptoProviderOptions,
   ErrorHandler,
-  ErrorType, ICompressionProvider, IServerTransport,
+  ErrorType,
+  HandshakePacket, HandshakePacketData,
+  HandshakePayload,
+  HandshakeStep,
+  HeaderEncoder,
+  ICompressionProvider,
+  IServerTransport,
   Logger,
   LogLevel,
+  PacketType,
   ParseUtils,
+  Peer,
+  PERF_CONSTANTS,
+  Performance,
+  PROTOCOL_VERSION,
   TransportCloseCode,
   TransportErrorHandler,
-  Performance, PERF_CONSTANTS, ClientData, ClientConnection, ClientDisconnect, HeaderEncoder, PacketType,
-  BWeaveCompression
+  UUID
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
 import { FlashBuffer } from 'flash-buffer';
+import { QuarkDashProvider } from '../shared/crypto/providers/quarkdash';
+import { Router } from './router';
 
 /* Export Libraries */
 export * from "./transport/websocket";
@@ -36,6 +54,8 @@ export * from "./router";
  */
 export interface BitWarpServerOptions extends BitWarpOptions{
   compression ? : ICompressionProvider | false;
+  cryptoProvider ? : CryptoProvider | false;
+  cryptoProviderOptions ? : CryptoProviderOptions;
 }
 
 /**
@@ -66,8 +86,18 @@ export class BitWarpServer {
   public readonly onStopped : BaseEvent = new BaseEvent();
   public readonly onError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
 
+  // Handshake
+  public readonly onHandshakeStarted : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
+  public readonly onHandshakeComplete : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
+
   // Server state
   private _isStarted = false;
+
+  // Encryptors
+  private _encryptProvider ? : CryptoProvider;
+
+  // Peers List
+  private _peers : Map<string, Peer> = new Map<string, Peer>();
 
   // #region basic setup and fields
   /**
@@ -83,6 +113,9 @@ export class BitWarpServer {
 
     // Init compressor
     if(this.options.compression) this._compressor = this.options.compression;
+
+    // Create crypto provider
+    if(this.options.cryptoProvider) this._encryptProvider = this.options.cryptoProvider;
 
     // Create transport is not defined
     this._isDebug = this.options.debug ?? false;
@@ -134,8 +167,8 @@ export class BitWarpServer {
     self.transport.onClientDisconnected.addListener(disconnectState => {
       self.handleRawDisconnect(disconnectState);
     });
-    self.transport.onClientDataReceived.addListener(clientData => {
-      self.handleRawMessage(clientData);
+    self.transport.onClientDataReceived.addListener(async clientData => {
+      await self.handleRawMessage(clientData);
     })
     self.transport.onConnected.addListener(() => {
       Logger.success(`BitWarp Server is successfully started`);
@@ -214,7 +247,8 @@ export class BitWarpServer {
    * @private
    */
   private handleRawDisconnect(disconnect : ClientDisconnect) {
-
+    let self = this;
+    self.removePeerByConnectionId(disconnect.connectionId);
   }
 
   /**
@@ -222,63 +256,260 @@ export class BitWarpServer {
    * @param clientData {ClientData} Raw client data
    * @private
    */
-  private handleRawMessage(clientData : ClientData) : void {
+  private async handleRawMessage(clientData : ClientData) : Promise<void> {
+    let self = this;
+    try {
+      // Check compression
+      if(self.options.compression){
+        if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
+        clientData.data = self._compressor.decompress(clientData.data);
+      }
+
+      // Get message buffer
+      const messageBuffer = new FlashBuffer();
+      messageBuffer.writeBytes(clientData.data);
+      messageBuffer.reset();
+
+      // Read header and payload
+      const headerData = HeaderEncoder.read(messageBuffer);
+      switch (headerData.type){
+        case PacketType.COMMAND : {
+          break;
+        }
+        case PacketType.COMMAND_RESPONSE: {
+          break;
+        }
+        case PacketType.ERROR: {
+          const errorData = ErrorHandler.fromBuffer(clientData.data);
+          Logger.error(`Received an error from connection: ${clientData.connection.id}. Error: ${errorData?.message ?? "Unknown error"}`);
+          self.onClientError.invoke({ connection: clientData.connection, error: errorData });
+          await self.transport.send(self.preparePacket(errorData.toBuffer()), clientData.connection)
+          break;
+        }
+        case PacketType.EVENT: {
+
+          break;
+        }
+        case PacketType.HANDSHAKE: {
+          const handshakeData = HandshakePacket.decode(clientData.data);
+          await self.handleHandshake(clientData.connection, handshakeData);
+          break;
+        }
+        case PacketType.RAW_BINARY: {
+          break;
+        }
+        case PacketType.ROOM: {
+          break;
+        }
+        case PacketType.STREAM_CONTROL: {
+          break;
+        }
+        case PacketType.SYNC_ACTION: {
+          break;
+        }
+        case PacketType.SYNC_OBJECT: {
+          break;
+        }
+        default: {
+          let error = new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ServerException);
+          Logger.error(`Wrong packet type received from connection ${clientData.connection.id}: ${headerData.type}`);
+          self.onError.invoke(error);
+          await self.transport.send(self.preparePacket(error.toBuffer()), clientData.connection);
+          return;
+        }
+      }
+    }catch (error : any){
+      let errorData = new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ClientException)
+      Logger.error(`Failed to process raw message for ${clientData.connection.id}: ${error?.message ?? "Unknown error"}`);
+      self.onError.invoke(errorData);
+      try { await self.transport.send(self.preparePacket(errorData.toBuffer()), clientData.connection) }catch{}
+      return Promise.reject(error);
+    }
+  }
+
+  /**
+   * Prepare packet for transport send
+   * @param data {Uint8Array} Raw packet buffer
+   * @returns {Uint8Array} Prepared for transport raw packet
+   * @private
+   */
+  private preparePacket(data : Uint8Array) : Uint8Array {
+    let self = this;
+    if(self.options.compression){
+      data = self.options.compression.compress(data);
+    }
+
+    return data;
+  }
+
+  /**
+   * Handle Handshake
+   * @param clientData {ClientConnection} Client connection
+   * @param packet {HandshakePacketData} Handshake payload
+   * @private
+   */
+  private async handleHandshake(clientData : ClientConnection, packet : HandshakePacketData) : Promise<void> {
     let self = this;
 
-    // Check compression
-    if(self.options.compression){
-      if(!self._compressor) throw new Error("Failed to decompress message. Compressor is not initialized.");
-      clientData.data = self._compressor.decompress(clientData.data);
+    // Call router middleware
+    await Router.invoke("handshake", clientData, packet);
+
+    // Has peer data - recreate
+    let handshakeData = packet.payload;
+    let peerData : Peer | undefined = self.getPeerByConnectionId(clientData.id);
+    if(!peerData){
+      let peerId = UUID.v4();
+      peerData = {
+        connection: clientData,
+        id: peerId,
+        encryptor: self._encryptProvider?.getNewInstance() ?? undefined,
+        handshakeComplete: false,
+        handshakeStep : HandshakeStep.INIT,
+        clientKey: new Uint8Array(0)
+      };
+      self._peers.set(peerId, peerData);
     }
 
-    // Get message buffer
-    const messageBuffer = new FlashBuffer();
-    messageBuffer.writeBytes(clientData.data);
-    messageBuffer.reset();
+    // Check protocol version
+    if(handshakeData.protocolVersion !== PROTOCOL_VERSION){
+      let error = new ErrorHandler(`Failed to initialize handshake. Protocol version mismatch. Required version: ${PROTOCOL_VERSION}`);
+      await self.transport.send(error.toBuffer(), clientData);
+      return;
+    }
 
-    // Read header and payload
-    const headerData = HeaderEncoder.read(messageBuffer);
-    switch (headerData.type){
-      case PacketType.COMMAND : {
-        break;
-      }
-      case PacketType.COMMAND_RESPONSE: {
-        break;
-      }
-      case PacketType.ERROR: {
-        const errorData = ErrorHandler.fromBuffer(clientData.data);
-        Logger.error(`Received an error from connection: ${clientData.connection.id}. Error: ${errorData?.message ?? "Unknown error"}`);
-        self.onClientError.invoke({ connection: clientData.connection, error: errorData });
-        break;
-      }
-      case PacketType.EVENT: {
+    // Check handshake packet
+    switch (handshakeData.step) {
+      case HandshakeStep.INIT: {
+        // Check encryptor and keys
+        if(self.options.cryptoProvider && !peerData.encryptor){
+          let error = `Failed to process handshake initialization. Peer ${peerData.id} doesn't have an encryptor instance.`
+          Logger.error(error);
+          return Promise.reject(new Error(error));
+        }
+        if(self.options.cryptoProvider && handshakeData.clientPublicKey.length < 1){
+          let error = `Failed to process handshake initialization. Received an empty client key.`
+          Logger.error(error);
+          return Promise.reject(new Error(error));
+        }
 
-        break;
+        // Setup encryptor
+        let serverPublic = (peerData.encryptor) ? await peerData.encryptor.getPublicKey() : new Uint8Array(0);
+        let responsePacket = HandshakePacket.encode({
+          protocolVersion: PROTOCOL_VERSION,
+          step: HandshakeStep.RESPONSE,
+          serverPublicKey: serverPublic as Uint8Array
+        });
+
+        // Update Peer
+        peerData.clientKey = handshakeData.clientPublicKey;
+        peerData.handshakeStep = HandshakeStep.RESPONSE;
+        self._peers.set(peerData.id, peerData);
+
+        // Send handshake
+        await self.transport.send(self.preparePacket(responsePacket), clientData);
+        await self.onHandshakeStarted.invokeAsync(clientData);
+        return Promise.resolve();
       }
-      case PacketType.HANDSHAKE: {
-        break;
+      case HandshakeStep.RESPONSE: {
+        let error = new ErrorHandler(`Failed to process handshake. Response handshake step is readonly.`);
+        self.removePeerByConnectionId(clientData.id);
+        await self.transport.send(error.toBuffer(), clientData);
+        return Promise.resolve();
       }
-      case PacketType.RAW_BINARY: {
-        break;
-      }
-      case PacketType.ROOM: {
-        break;
-      }
-      case PacketType.STREAM_CONTROL: {
-        break;
-      }
-      case PacketType.SYNC_ACTION: {
-        break;
-      }
-      case PacketType.SYNC_OBJECT: {
-        break;
+      case HandshakeStep.FINISH: {
+        // Check encryptor
+        if(self.options.cryptoProvider && !peerData.encryptor){
+          let error = `Failed to process handshake initialization. Peer ${peerData.id} doesn't have an encryptor instance.`
+          Logger.error(error);
+          return Promise.reject(new Error(error));
+        }
+
+        // Initialize session
+        if(self.options.cryptoProvider){
+          try{
+            await peerData.encryptor?.initializeSession(peerData.clientKey, false);
+            await peerData.encryptor?.finalizeSession(handshakeData.cipherText);
+          }catch(error : any){
+            Logger.error(`Failed to process handshake session. Error: ${error?.message ?? "Unknown error"}`);
+            return Promise.reject(error);
+          }
+        }
+
+        // Update peer
+        peerData.handshakeStep = HandshakeStep.FINISH;
+        peerData.handshakeComplete = true;
+        peerData.clientKey = new Uint8Array(0); // empty key
+        self._peers.set(peerData.id, peerData);
+
+        // Echo packet
+        let responsePacket = HandshakePacket.encode({
+          protocolVersion: PROTOCOL_VERSION,
+          step: HandshakeStep.FINISH,
+          cipherText: handshakeData.cipherText
+        });
+
+        // All Right
+        Logger.info(`Handshake complete for connection: ${clientData.id}`)
+        await self.transport.send(self.preparePacket(responsePacket), clientData);
+        await self.onHandshakeComplete.invokeAsync(clientData);
+        return Promise.resolve();
       }
       default: {
-        Logger.error(`Wrong packet type received from connection ${clientData.connection.id}: ${headerData.type}`);
-        self.onError.invoke(new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ServerException));
-        return;
+        let error = new ErrorHandler(`Unknown handshake step received.`);
+        await self.transport.send(error.toBuffer(), clientData);
+        return Promise.resolve();
       }
     }
+  }
+
+  /**
+   * Remove peer by ID
+   * @param peerId {string} Peer ID
+   * @private
+   */
+  private removePeer(peerId : string){
+    let self = this;
+    if(!self._peers.has(peerId)) return;
+
+    // Remove peer
+    self._peers.delete(peerId);
+    // Notify peer removed
+    return;
+  }
+
+  /**
+   * Remove peer by connection ID
+   * @param connectionId {string} Connection ID
+   * @private
+   */
+  private removePeerByConnectionId(connectionId : string){
+    let self = this;
+
+    // Remove from peers
+    self._peers.forEach((peer : Peer) => {
+      if(peer.connection.id === connectionId){
+        self.removePeer(peer.id);
+        return;
+      }
+    });
+  }
+
+  /**
+   * Get peer by connection ID
+   * @param connectionId {string} Connection id
+   * @private
+   */
+  private getPeerByConnectionId(connectionId : string) : Peer | undefined{
+    let self = this;
+    let foundPeer : Peer | undefined = undefined;
+    self._peers.forEach((peer : Peer) => {
+      if(peer.connection.id === connectionId){
+        foundPeer = peer;
+        return;
+      }
+    });
+
+    return foundPeer;
   }
   // #endregion
 
@@ -292,7 +523,9 @@ export class BitWarpServer {
       version : process?.env?.APPLICATION_VERSION ?? "1.0.0",
       debug : ParseUtils.bool(process?.env?.DEBUG_MODE ?? "true"),
       logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
-      compression: new BWeaveCompression()
+      compression: new BWeaveCompression(),
+      cryptoProvider: new QuarkDashProvider(),
+      cryptoProviderOptions: {}
     }
   }
   // #endregion

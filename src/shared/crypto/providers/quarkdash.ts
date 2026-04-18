@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1028
+ * @build                 1047
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import { CryptoProvider, CryptoProviderOptions, KeyPair } from '../../proto/crypto';
@@ -29,11 +29,14 @@ export class QuarkDashProviderOptions implements CryptoProviderOptions{
  * QuarkDash Crypto Provider
  */
 export class QuarkDashProvider implements CryptoProvider {
+  // Provider Type
+  public type = QuarkDashProvider;
+
+  // Options
   private _options : QuarkDashProviderOptions;
   private _instance : QuarkDash;
   private _isDisposed : boolean = false;
   private _isSessionReady : boolean = false;
-  private _isKeysReady : boolean = false;
 
   /**
    * Create new QuarkDash Crypto Provider
@@ -51,6 +54,10 @@ export class QuarkDashProvider implements CryptoProvider {
       ...(this._options?.keyExchange && { keyExchange: this._options?.keyExchange }),
       ...(this._options?.maxPacketWindow && { maxPacketWindow: this._options?.maxPacketWindow }),
       ...(this._options?.timestampToleranceMs && { timestampToleranceMs: this._options?.timestampToleranceMs }),
+      WASM: {
+        isEnabled: true,
+        shakePath: "../../shake.wasm"
+      }
     });
   }
 
@@ -137,6 +144,15 @@ export class QuarkDashProvider implements CryptoProvider {
     this._instance.dispose();
     this._isDisposed = true;
     return Promise.resolve();
+  }
+
+  /**
+   * Get new instance of QuarkDash Provider
+   * @param options {QuarkDashProviderOptions} Provider options
+   * @returns {QuarkDashProvider} New instance of provider
+   */
+  public getNewInstance(options ? : QuarkDashProviderOptions): QuarkDashProvider {
+    return new QuarkDashProvider(options ? options : {});
   }
 
   /**

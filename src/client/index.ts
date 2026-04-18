@@ -3,18 +3,24 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1038
+ * @build                 1057
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import {
   BaseEvent,
-  BitWarpOptions, BWeaveCompression,
+  BitWarpOptions,
+  BWeaveCompression,
+  CryptoProvider,
+  CryptoProviderOptions,
   ErrorHandler,
   ErrorType,
-  HandshakePacketData,
+  HandshakeInit,
+  HandshakePacket, HandshakePacketData,
+  HandshakePayload,
+  HandshakeStep,
   HeaderEncoder,
   IClientTransport,
   ICompressionProvider,
@@ -23,11 +29,14 @@ import {
   PacketType,
   PERF_CONSTANTS,
   Performance,
+  PROTOCOL_VERSION,
   TransportCloseCode,
-  TransportErrorHandler
+  TransportErrorHandler,
+  UUID
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 import { FlashBuffer } from 'flash-buffer';
+import { QuarkDashProvider } from '../shared/crypto/providers/quarkdash';
 
 /* Export Libraries */
 export * from "./transport/websocket";
@@ -37,6 +46,8 @@ export * from "./transport/websocket";
  */
 export interface BitWarpClientOptions extends BitWarpOptions {
   compression ? : ICompressionProvider | false;
+  cryptoProvider ? : CryptoProvider | false;
+  cryptoProviderOptions ? : CryptoProviderOptions;
 }
 
 /**
@@ -56,10 +67,18 @@ export class BitWarpClient {
   public readonly onStopped : BaseEvent = new BaseEvent();
   public readonly onError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
 
+  // Handshake events
+  public readonly onHandshakeStarted : BaseEvent = new BaseEvent();
+  public readonly onHandshakeComplete : BaseEvent = new BaseEvent();
+
   // Client state
   private _isConnected = false;
   private _isHandshakeComplete  = false;
-  private _isHandshakeStarted = false;
+  private _handshakeStep : HandshakeStep = HandshakeStep.INIT;
+
+  // Encryptors
+  private _encryptProvider ? : CryptoProvider;
+  private _publicKey ? : Uint8Array;
 
   // #region basic setup and fields
   /**
@@ -76,12 +95,15 @@ export class BitWarpClient {
     // Init compressor
     if(this.options.compression) this._compressor = this.options.compression;
 
+    // Create crypto provider
+    if(this.options.cryptoProvider) this._encryptProvider = this.options.cryptoProvider;
+
     // Create transport is not defined
     this._isDebug = this.options.debug ?? false;
     this._transport = (this.options.transport) ? this.options.transport as IClientTransport : new WebSocketClientTransport();
     this._isConnected = false;
     this._isHandshakeComplete = false;
-    this._isHandshakeStarted = false;
+    this._handshakeStep = HandshakeStep.INIT;
   }
 
   // #region Client Fields
@@ -122,17 +144,17 @@ export class BitWarpClient {
 
     // Start transport
     self.unsubscribeAllTransport();
-    self.transport.onConnected.addListener(() => {
+    self.transport.onConnected.addListener(async () => {
       Logger.success(`BitWarp Client is successfully started`);
       self._performance.mark(PERF_CONSTANTS.TRANSPORT_CONNECTED);
       Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
 
       // Handshake
-      self.startHandshake();
+      await self.startHandshake();
     });
-    self.transport.onDataReceived.addListener((data) => {
-      self.handleRawMessage(data);
+    self.transport.onDataReceived.addListener(async (data) => {
+      await self.handleRawMessage(data);
     });
     self.transport.onError.addListener((error) => {
       Logger.error(`BitWarp Client Error: ${error?.message ?? "Unknown error"}`);
@@ -192,7 +214,7 @@ export class BitWarpClient {
    * @param message {Uint8Array} Message data
    * @private
    */
-  private handleRawMessage(message : Uint8Array) {
+  private async handleRawMessage(message : Uint8Array) : Promise<void> {
     let self = this;
 
     try {
@@ -231,6 +253,8 @@ export class BitWarpClient {
           break;
         }
         case PacketType.HANDSHAKE: {
+          const handshakeData = HandshakePacket.decode(message);
+          await self.processHandshake(handshakeData);
           break;
         }
         case PacketType.RAW_BINARY: {
@@ -260,6 +284,21 @@ export class BitWarpClient {
       self.onError.invoke(errorData);
     }
   }
+
+  /**
+   * Prepare packet for transport send
+   * @param data {Uint8Array} Raw packet buffer
+   * @returns {Uint8Array} Prepared for transport raw packet
+   * @private
+   */
+  private preparePacket(data : Uint8Array) : Uint8Array {
+    let self = this;
+    if(self.options.compression){
+      data = self.options.compression.compress(data);
+    }
+
+    return data;
+  }
   // #endregion
 
   // #region Handshake
@@ -267,28 +306,96 @@ export class BitWarpClient {
    * Start handshake
    * @private
    */
-  private startHandshake(){
+  private async startHandshake(){
     let self = this;
+    self._performance.mark(PERF_CONSTANTS.HANDSHAKE_STARTED);
+    Logger.info(`Handshake started. Encryption: ${(self.options.cryptoProvider) ? "Enabled" : "Disabled"}`);
     self._isHandshakeComplete = false;
-    self._isHandshakeStarted = true;
+    self._handshakeStep = HandshakeStep.INIT;
 
+    // Create key and ciphertext
+    if(self.options.cryptoProvider) {
+      self._encryptProvider?.dispose();
+      self._publicKey = await self._encryptProvider?.getPublicKey();
+    }else{
+      self._encryptProvider = undefined;
+      self._publicKey = undefined;
+    }
 
+    // Create handshake packet
+    let handshakePacket = HandshakePacket.encode({
+      step: HandshakeStep.INIT,
+      clientPublicKey: self._publicKey ?? new Uint8Array(0)
+    } as HandshakeInit);
+
+    Logger.info("Sending handshake packet...");
+    await self.transport.send({ packetId: UUID.v4(), data: self.preparePacket(handshakePacket) });
+    await self.onHandshakeStarted.invokeAsync();
+    return Promise.resolve();
   }
 
   /**
    * Process handshake
-   * @param data {HandshakePacketData} Handshake packet data
+   * @param packet {HandshakePacketData} Handshake packet data
    * @private
    */
-  private processHandshake(data : HandshakePacketData){
+  private async processHandshake(packet : HandshakePacketData){
+    let self = this;
+    let data = packet.payload;
 
+    // Check protocol version
+    if(data.protocolVersion !== PROTOCOL_VERSION) {
+      throw new Error(`${data.protocolVersion} is not supported`);
+    }
+
+    // Handshake steps
+    switch (data.step) {
+      case HandshakeStep.INIT : {
+        self.onError.invoke(new ErrorHandler(`Failed to process handshake. Unknown handshake step received from server.`));
+        return Promise.resolve();
+      }
+      case HandshakeStep.RESPONSE : {
+        // Prepare ciphertext
+        let ciphertext : Uint8Array | null = new Uint8Array(0);
+        if(self.options.cryptoProvider){
+          if(!self._encryptProvider) throw new Error("Failed to process handshake packet from server. Encryption provider is not defined");
+          ciphertext = await self._encryptProvider.initializeSession(data.serverPublicKey, true);
+          if(!ciphertext) throw new Error("Failed to process handshake packet from server. Generated ciphertext is null");
+        }
+
+        // Create Packet
+        self._handshakeStep = HandshakeStep.RESPONSE;
+        let handshakePacket = HandshakePacket.encode({
+          step: HandshakeStep.FINISH,
+          cipherText: ciphertext,
+          protocolVersion: PROTOCOL_VERSION
+        });
+
+        // Send packet
+        await self.transport.send({ packetId: UUID.v4(), data: self.preparePacket(handshakePacket) });
+        break;
+      }
+      case HandshakeStep.FINISH : {
+        self._handshakeStep = HandshakeStep.FINISH;
+        self._isHandshakeComplete = true;
+        await self.onHandshakeComplete.invokeAsync();
+
+        self._performance.mark(PERF_CONSTANTS.HANDSHAKE_COMPLETE);
+        Logger.success(`Handshake completed in ${self._performance.measure(PERF_CONSTANTS.HANDSHAKE_MEASURE, PERF_CONSTANTS.HANDSHAKE_STARTED, PERF_CONSTANTS.HANDSHAKE_COMPLETE)} ms. Ready for messaging with server.`);
+        break;
+      }
+      default: {
+        self.onError.invoke(new ErrorHandler(`Failed to process handshake. Unknown handshake step received from server.`));
+        return Promise.resolve();
+      }
+    }
   }
 
   /**
    * Finalize handshake
    * @private
    */
-  private endHandshake(){
+  private async endHandshake(){
 
   }
   // #endregion
@@ -303,7 +410,9 @@ export class BitWarpClient {
       version: "1.0.0",
       debug: true,
       logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
-      compression: new BWeaveCompression()
+      compression: new BWeaveCompression(),
+      cryptoProvider: new QuarkDashProvider(),
+      cryptoProviderOptions: {}
     }
   }
   // #endregion

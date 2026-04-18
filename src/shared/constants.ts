@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1007
+ * @build                 1026
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               13.04.2026
+ * @updated               18.04.2026
  */
 /**
  * Performance Constants
@@ -15,6 +15,9 @@ export const PERF_CONSTANTS = {
   TRANSPORT_MEASURE: "TRANSPORT_MEASURE",
   TRANSPORT_CREATED: "TRANSPORT_START",
   TRANSPORT_CONNECTED: "TRANSPORT_CONNECTED",
+  HANDSHAKE_MEASURE: "HANDSHAKE_MEASURE",
+  HANDSHAKE_STARTED : "HANDSHAKE_STARTED",
+  HANDSHAKE_COMPLETE : "HANDSHAKE_COMPLETE"
 }
 
 /* Protocol Magic Byte and Version */

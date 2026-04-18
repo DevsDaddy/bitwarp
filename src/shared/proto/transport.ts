@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1036
+ * @build                 1046
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
@@ -295,7 +295,6 @@ export abstract class Transport implements ITransport {
    */
   public updateConnector(connector : any) : any | TransportErrorHandler {
     try {
-      if(this.isConnected || this.connector) return new TransportErrorHandler(`Failed to update connector. Connector is already used.`, null, TransportError.InitializationFailed);
       this._connector = connector;
     }catch(error : any) {
       return new TransportErrorHandler(`Failed to set transport connector. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.InitializationFailed);

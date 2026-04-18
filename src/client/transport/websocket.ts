@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1029
+ * @build                 1048
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import {
@@ -83,6 +83,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         // Subscribe to connector events
         connector.addEventListener("open", async () => {
           Logger.success(`WebSocket Transport client is connected with: ${self.options.host}:${self.options.port}`);
+          self.updateConnector(connector);
           self.isConnected = true;
           self.startResend();
           self.onConnected.invoke(connector);
@@ -243,6 +244,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
 
       // If not connected - put to resend queue
       if(!self.isConnected || self.connector.readyState !== WebSocket.OPEN) {
+        console.log(self.connector, self.isConnected, self.connector.readyState);
         if(self.options.resend.enabled){
           Logger.info(`Failed to send packet ${rawPacket.packetId}. Trying to resend.`)
           self._resendQueue.enqueue(rawPacket);
@@ -294,7 +296,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
       return;
     }
 
-    this.onDataReceived.invoke(uint8);
+    await this.onDataReceived.invokeAsync(uint8);
   }
 
   /**
@@ -320,6 +322,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         if(self._resendAttempts >= (self.options.resend.maxAttempts - 1)){
           self._resendAttempts = 0;
           self._resendQueue.clear();
+          self.stopResend();
         }
       }
     }, self.options.resend.delay);

@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1019
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               18.04.2026
  */
 /**
  * Hash Provider
@@ -45,4 +45,7 @@ export interface CryptoProvider {
 
   // Dispose
   dispose() : Promise<void>;
+
+  // Get new Instance
+  getNewInstance(options ? : CryptoProviderOptions) : CryptoProvider;
 }

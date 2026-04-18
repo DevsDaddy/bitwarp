@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1012
+ * @build                 1031
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               15.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import {
@@ -506,8 +506,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     });
 
     // Add other connection events
-    client.on('message', (data) => {
-      self.handleMessage(connection, data);
+    client.on('message', async (data) => {
+      await self.handleMessage(connection, data);
     });
     client.on('close', () => {
       self.handleDisconnect(connectionId);
@@ -552,8 +552,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
    * @private
    * TODO: Use Redis Streams
    */
-  private handleMessage(connection : ClientConnection, data : string | Buffer | ArrayBuffer | Buffer[]) : void {
-    this.onClientDataReceived.invoke({
+  private async handleMessage(connection : ClientConnection, data : string | Buffer | ArrayBuffer | Buffer[]) : Promise<void> {
+    await this.onClientDataReceived.invokeAsync({
       connection: connection,
       data: BinaryConverter.toUint8Array(data as any)
     })

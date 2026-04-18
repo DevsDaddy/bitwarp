@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1015
+ * @build                 1016
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import modules */
 import { defineConfig } from 'vite';
@@ -16,6 +16,7 @@ import { defineConfig } from 'vite';
  */
 export default defineConfig({
   root: 'demo/client',
+  assetsInclude: ['**/*.wasm'],
   server: {
     headers: {
       "Cross-Origin-Embedder-Policy": "require-corp",
