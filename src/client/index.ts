@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1058
+ * @build                 1059
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               18.04.2026
@@ -19,7 +19,6 @@ import {
   ErrorType,
   HandshakeInit,
   HandshakePacket, HandshakePacketData,
-  HandshakePayload,
   HandshakeStep,
   HeaderEncoder,
   IClientTransport,
@@ -32,11 +31,11 @@ import {
   PROTOCOL_VERSION,
   TransportCloseCode,
   TransportErrorHandler,
-  UUID
+  UUID,
+  QuarkDashProvider
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 import { FlashBuffer } from 'flash-buffer';
-import { QuarkDashProvider } from '../shared/crypto/providers/quarkdash';
 
 /* Export Libraries */
 export * from "./transport/websocket";

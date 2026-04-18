@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1029
+ * @build                 1031
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
@@ -39,6 +39,7 @@ export class ErrorPacket extends BasePacket {
    */
   public static serialize(payload : ErrorPayload) : Uint8Array {
     const buf = new FlashBuffer();
+    if(!payload.stack) payload.stack = "";
     buf.writeUint16(payload.message.length, true);
     buf.writeString(payload.message, "utf-8");
     buf.writeUint16(payload.stack.length, true);

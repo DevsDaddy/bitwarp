@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1058
+ * @build                 1059
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               18.04.2026
@@ -38,12 +38,12 @@ import {
   PROTOCOL_VERSION,
   TransportCloseCode,
   TransportErrorHandler,
-  UUID
+  UUID,
+  QuarkDashProvider
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
 import { FlashBuffer } from 'flash-buffer';
-import { QuarkDashProvider } from '../shared/crypto/providers/quarkdash';
 import { Router } from './router';
 
 /* Export Libraries */
