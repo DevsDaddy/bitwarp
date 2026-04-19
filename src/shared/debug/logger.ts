@@ -11,6 +11,7 @@
 /* Import required modules */
 import { Color } from '../types/color';
 import { FormatUtils } from '../utils/format';
+import { BaseEvent } from '../types/event';
 
 /**
  * Logger message type
@@ -51,6 +52,14 @@ interface FormatOptions {
  * BitWarp Logger
  */
 export class Logger {
+  // Logger events
+  public static readonly onMessage : BaseEvent<{ type : MessageType, message : string, args: any[] }> = new BaseEvent();
+  public static readonly onLog : BaseEvent<{ message : string, args: any[] }> = new BaseEvent();
+  public static readonly onInfo : BaseEvent<{ message : string, args: any[] }> = new BaseEvent();
+  public static readonly onSuccess : BaseEvent<{ message : string, args: any[] }> = new BaseEvent();
+  public static readonly onError : BaseEvent<{ message : string, args: any[] }> = new BaseEvent();
+  public static readonly onWarning : BaseEvent<{ message : string, args: any[] }> = new BaseEvent();
+
   // Logger settings
   private static _isEnabled : boolean = true;
   private static _logLevel : LogLevel = LogLevel.Info | LogLevel.Warning | LogLevel.Log | LogLevel.Error | LogLevel.Success;
@@ -226,6 +235,14 @@ export class Logger {
     }else{
       console.log(`${prefix}${plate} ${msg}`, ...args);
     }
+
+    // Send events
+    this.onMessage.invoke({type, message, args});
+    if(type === MessageType.info) this.onInfo.invoke({message, args});
+    if(type === MessageType.error) this.onError.invoke({message, args});
+    if(type === MessageType.success) this.onSuccess.invoke({message, args});
+    if(type === MessageType.warn) this.onWarning.invoke({message, args});
+    if(type === MessageType.log) this.onLog.invoke({message, args});
   }
 
   /**
