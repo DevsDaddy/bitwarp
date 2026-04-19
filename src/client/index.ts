@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1078
+ * @build                 1079
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -451,8 +451,7 @@ export class BitWarpClient {
   private async sendPingPacket(){
     // Create ping packet
     let self = this;
-    if(!self._encryptProvider) return Promise.reject(new Error(`Failed to send ping packet. Encryption provider is not defined. Restart server handshake and try again.`));
-    PingPacket.setCryptoProvider(self._encryptProvider);
+    if(self._encryptProvider) PingPacket.setCryptoProvider(self._encryptProvider);
     let pingPacket = PingPacket.encode({
       timestamp: Date.now()
     });
@@ -467,8 +466,7 @@ export class BitWarpClient {
    */
   private async processPingPacket(message : Uint8Array){
     let self = this;
-    if(!self._encryptProvider) return Promise.reject(new Error(`Failed to send ping packet. Encryption provider is not defined. Restart server handshake and try again.`));
-    PingPacket.setCryptoProvider(self._encryptProvider);
+    if(self._encryptProvider) PingPacket.setCryptoProvider(self._encryptProvider);
     let pingData = PingPacket.decode(message);
     let ping = Date.now() - pingData.payload.timestamp;
     self._ping = ping;

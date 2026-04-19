@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1002
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { BaseEvent, ErrorHandler, ErrorType, Logger } from '../../src/shared';
@@ -63,6 +63,7 @@ class Application {
   // Create application instance
   Logger.head("Welcome to demo application");
   const app = new Application(new BitWarpServer({
+    cryptoProvider: false
   }));
 
   // Add application events
