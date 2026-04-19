@@ -111,6 +111,11 @@ html, body {
     justify-content: space-between;
     align-content: center;
     align-items: center;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
 .app_content{
     width: 100%;
@@ -120,6 +125,11 @@ html, body {
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
+}
+
+/* Toast container */
+#toast-container{
+    padding: 20px;
 }
 
 /*
@@ -180,6 +190,10 @@ html, body {
     border: 1px solid #445867;
     border-radius: 50px;
     cursor: pointer;
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
 }
 .connection .inner_icon{
     position: relative;

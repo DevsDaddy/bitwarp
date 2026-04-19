@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1032
+ * @build                 1033
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -11,6 +11,9 @@
 /* Import required modules */
 import { Logger, BaseEvent, ErrorHandler, ErrorType } from '../../dist/';
 import { BitWarpClient, BitWarpClientOptions } from '../../dist/client';
+
+/* Toast type */
+type ToastType = 'success' | 'info' | 'warning' | 'error';
 
 /**
  * Demo application client
@@ -22,6 +25,7 @@ class Application {
 
   // Client Instance
   private readonly _client : BitWarpClient;
+  private _isToastSetup : boolean = false;
 
   /**
    * Create demo application
@@ -54,11 +58,18 @@ class Application {
     self.client.onHandshakeComplete.addListener(()=>{
       self.setLabel("loading_state", "Initialized.");
       self.onInitialized.invoke();
+
+      // Has crypto provider
+      self.showToast(
+        (self.client.options.cryptoProvider) ? "success" : "warning",
+        (self.client.options.cryptoProvider) ? "Secured connection" : "Unsafe connection",
+        (self.client.options.cryptoProvider) ? "Your connection are secured now" : "This server doesn't support a secured connection.");
     });
     self.client.onStopped.addListener(() => {
       self.updateStatusBar();
       self.toggleLayout("app_content", false);
       Logger.success(`Application is stopped, because BitWarp Client is stopped.`);
+      self.showToast("warning", "Disconnected", "Your connection was stopped");
     });
     self.client.onInitializationError.addListener((error)=> {
       // @ts-ignore
@@ -176,6 +187,53 @@ class Application {
     return url;
   }
 
+  /**
+   * Show toast
+   * @param type {ToastType} Toast type
+   * @param title {string} Toast title
+   * @param message {string} Toast message
+   * @param onClick {Function} Callback function
+   */
+  public showToast(type : ToastType, title : string, message : string, onClick ? : Function){
+    let self = this;
+
+    if(!self._isToastSetup){
+      // @ts-ignore
+      toastr.options = {
+        "closeButton": true,
+        "debug": false,
+        "newestOnTop": true,
+        "progressBar": true,
+        "positionClass": (window.innerWidth <= 768) ? "toast-bottom-full-width" : "toast-bottom-right",
+        "preventDuplicates": false,
+        "onclick": onClick ?? null,
+        "showDuration": "300",
+        "hideDuration": "300",
+        "timeOut": "5000",
+        "extendedTimeOut": "1000",
+        "showEasing": "swing",
+        "hideEasing": "linear",
+        "showMethod": "fadeIn",
+        "hideMethod": "fadeOut"
+      };
+
+      self._isToastSetup = true;
+
+      // Resize window
+      function redraw(){
+        self._isToastSetup = false;
+        // @ts-ignore
+        toastr.remove();
+      }
+
+      window.removeEventListener("resize", redraw);
+      window.addEventListener("resize", redraw);
+    }
+
+    // @ts-ignore
+    toastr[type](message, title);
+  }
+
   // Setup tooltips
   private setupTooltips(){
     // @ts-ignore
@@ -215,12 +273,11 @@ class Application {
     app.setLabel("loading_state", "Initialization Error");
     Logger.error(`Demo application failed with error: ${error?.message ?? "Unknown error"}`);
     app.updateStatusBar();
-    // TODO: Show Error Layout
   });
   app.onError.addListener((error)=> {
     Logger.error(`Application error: ${error?.message ?? "Unknown error"}`);
     app.updateStatusBar();
-    // TODO: Show Error Layout
+    app.showToast("error", "Error", `Application error: ${error?.message ?? "Unknown error"}`);
   });
 
   // Initialize application

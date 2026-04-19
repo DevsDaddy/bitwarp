@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1058
+ * @build                 1059
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -245,7 +245,6 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
 
       // If not connected - put to resend queue
       if(!self.isConnected || self.connector.readyState !== WebSocket.OPEN) {
-        console.log(self.connector, self.isConnected, self.connector.readyState);
         if(self.options.resend.enabled){
           Logger.info(`Failed to send packet ${rawPacket.packetId}. Trying to resend.`)
           self._resendQueue.enqueue(rawPacket);
