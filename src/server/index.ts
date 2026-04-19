@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1078
+ * @build                 1079
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -303,9 +303,7 @@ export class BitWarpServer {
       // Switch by header type
       switch (headerData.type){
         case PacketType.COMMAND : {
-          break;
-        }
-        case PacketType.COMMAND_RESPONSE: {
+          await self.processCommandPacket(clientData);
           break;
         }
         case PacketType.ERROR: {
@@ -316,7 +314,7 @@ export class BitWarpServer {
           break;
         }
         case PacketType.EVENT: {
-
+          await self.processEventPacket(clientData);
           break;
         }
         case PacketType.HANDSHAKE: {
@@ -335,22 +333,27 @@ export class BitWarpServer {
           break;
         }
         case PacketType.RAW_BINARY: {
+          await self.processRawPacket(clientData);
           break;
         }
         case PacketType.ROOM: {
+          await self.processRoomPacket(clientData);
           break;
         }
         case PacketType.STREAM_CONTROL: {
+          await self.processStreamPacket(clientData);
           break;
         }
         case PacketType.SYNC_ACTION: {
+          await self.processSyncActionPacket(clientData);
           break;
         }
         case PacketType.SYNC_OBJECT: {
+          await self.processSyncObjectPacket(clientData);
           break;
         }
         case PacketType.PING: {
-          await self.processPingPacket(clientData, clientData.data);
+          await self.processPingPacket(clientData);
           break;
         }
         default: {
@@ -508,6 +511,84 @@ export class BitWarpServer {
   }
 
   /**
+   * Process ping packet
+   * @param clientData {ClientData} Connection
+   * @private
+   */
+  private async processPingPacket(clientData : ClientData) : Promise<void> {
+    let self = this;
+    let encryptor = self.getPeerByConnectionId(clientData.connection.id)?.encryptor;
+    if(encryptor) PingPacket.setCryptoProvider(encryptor);
+    let pingPacket = PingPacket.decode(clientData.data);
+    let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
+    await self.transport.send(self.preparePacket(encoded), clientData.connection)
+    return Promise.resolve();
+  }
+
+  /**
+   * Process command packet
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processCommandPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
+   * Process event packet
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processEventPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
+   * Process raw binary data
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processRawPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
+   * Process room packet
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processRoomPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
+   * Process stream packet
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processStreamPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
+   * Process sync action packet
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processSyncActionPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
+   * Process sync object packet
+   * @param clientData {ClientData} Client data
+   * @private
+   */
+  private async processSyncObjectPacket(clientData : ClientData) : Promise<void> {
+
+  }
+
+  /**
    * Remove peer by ID
    * @param peerId {string} Peer ID
    * @private
@@ -555,22 +636,6 @@ export class BitWarpServer {
     });
 
     return foundPeer;
-  }
-
-  /**
-   * Process ping packet
-   * @param clientData {ClientData} Connection
-   * @param raw {Uint8Array} Raw packet
-   * @private
-   */
-  private async processPingPacket(clientData : ClientData, raw : Uint8Array) : Promise<void> {
-    let self = this;
-    let encryptor = self.getPeerByConnectionId(clientData.connection.id)?.encryptor;
-    if(encryptor) PingPacket.setCryptoProvider(encryptor);
-    let pingPacket = PingPacket.decode(raw);
-    let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
-    await self.transport.send(self.preparePacket(encoded), clientData.connection)
-    return Promise.resolve();
   }
   // #endregion
 

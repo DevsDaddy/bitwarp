@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1086
+ * @build                 1087
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -271,10 +271,8 @@ export class BitWarpClient {
 
       // Switch by type
       switch (headerData.type){
-        case PacketType.COMMAND : {
-          break;
-        }
         case PacketType.COMMAND_RESPONSE: {
+          await self.processCommandResponsePacket(message);
           break;
         }
         case PacketType.ERROR: {
@@ -284,7 +282,7 @@ export class BitWarpClient {
           break;
         }
         case PacketType.EVENT: {
-
+          await self.processEventPacket(message);
           break;
         }
         case PacketType.HANDSHAKE: {
@@ -293,18 +291,23 @@ export class BitWarpClient {
           break;
         }
         case PacketType.RAW_BINARY: {
+          await self.processRawPacket(message);
           break;
         }
         case PacketType.ROOM: {
+          await self.processRoomPacket(message);
           break;
         }
         case PacketType.STREAM_CONTROL: {
+          await self.processStreamPacket(message);
           break;
         }
         case PacketType.SYNC_ACTION: {
+          await self.processSyncActionPacket(message);
           break;
         }
         case PacketType.SYNC_OBJECT: {
+          await self.processSyncObjectPacket(message);
           break;
         }
         case PacketType.PING: {
@@ -464,7 +467,7 @@ export class BitWarpClient {
    * @param message {Uint8Array} Raw message
    * @private
    */
-  private async processPingPacket(message : Uint8Array){
+  private async processPingPacket(message : Uint8Array) : Promise<void>{
     let self = this;
     if(self._encryptProvider) PingPacket.setCryptoProvider(self._encryptProvider);
     let pingData = PingPacket.decode(message);
@@ -472,6 +475,69 @@ export class BitWarpClient {
     self._ping = ping;
     self.onPingChanged.invoke(ping);
     Logger.info(`Connection ping: ${ping}ms`);
+  }
+
+  /**
+   * Process command response packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processCommandResponsePacket(message : Uint8Array) : Promise<void> {
+
+  }
+
+  /**
+   * Process event packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processEventPacket(message : Uint8Array) : Promise<void> {
+
+  }
+
+  /**
+   * Process raw binary packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processRawPacket(message : Uint8Array) : Promise<void> {
+
+  }
+
+  /**
+   * Process room packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processRoomPacket(message : Uint8Array) : Promise<void> {
+
+  }
+
+  /**
+   * Process stream packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processStreamPacket(message : Uint8Array) : Promise<void> {
+
+  }
+
+  /**
+   * Process sync action packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processSyncActionPacket(message : Uint8Array) : Promise<void> {
+
+  }
+
+  /**
+   * Process sync object packet
+   * @param message {Uint8Array} Raw packet
+   * @private
+   */
+  private async processSyncObjectPacket(message : Uint8Array) : Promise<void> {
+
   }
   // #endregion
 
