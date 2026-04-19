@@ -190,6 +190,11 @@ html, body {
     transition: all ease-in-out 2s;
 }
 
+/* Hidden */
+.hidden{
+    display: none;
+}
+
 /*
     6. ANIMATIONS
  */

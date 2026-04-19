@@ -54,6 +54,7 @@ class Application {
     });
     self.client.onStopped.addListener(() => {
       self.updateStatusBar();
+      self.toggleLayout("app_content", false);
       Logger.success(`Application is stopped, because BitWarp Client is stopped.`);
     });
     self.client.onInitializationError.addListener((error)=> {
@@ -76,6 +77,7 @@ class Application {
       self.updateStatusBar();
       self.setLabel("loading_state", isReconnecting ? "Reconnecting..." : "Reconnected. Wait for handshake...");
       self.toggleLoader(isReconnecting);
+      self.toggleLayout("app_content", isReconnecting);
     });
     await self.client.connect();
   }
@@ -120,6 +122,17 @@ class Application {
     })
     self.setLabel("connection", self.client.isConnected ? "Connected" : "Offline");
   }
+
+  /**
+   * Toggle layout
+   * @param layout {string} layout id
+   * @param isEnabled {boolean} is enabled
+   */
+  public toggleLayout(layout: string, isEnabled: boolean) {
+    document.querySelectorAll(`[data-layout="${layout}"]`).forEach((item) => {
+      item.classList.toggle('hidden', !isEnabled);
+    });
+  }
   // #endregion
 }
 
@@ -136,16 +149,19 @@ class Application {
   // Add application events
   app.updateStatusBar();
   app.toggleLoader(true);
+  app.toggleLayout("app_content", false);
   app.setLabel("loading_state", "Initializing...");
   app.onInitialized.addListener(()=> {
     Logger.success(`Demo application was initialized`);
     app.toggleLoader(false);
     app.updateStatusBar();
+    app.toggleLayout("app_content", true);
   })
   app.onInitializationError.addListener((error)=> {
     app.setLabel("loading_state", "Initialization Error");
     Logger.error(`Demo application failed with error: ${error?.message ?? "Unknown error"}`);
     app.updateStatusBar();
+    // TODO: Show Error Layout
   });
   app.onError.addListener((error)=> {
     Logger.error(`Application error: ${error?.message ?? "Unknown error"}`);
