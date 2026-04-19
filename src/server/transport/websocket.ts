@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1011
+ * @build                 1032
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
 import {
@@ -27,6 +27,7 @@ import {
   TransportErrorHandler,
   UUID
 } from '../../shared';
+import { Router } from "../router";
 import { WebSocket, WebSocketServer } from 'ws';
 import 'dotenv/config';
 
@@ -52,6 +53,12 @@ export interface WebSocketServerTransportOptions extends ITransportOptions {
   resend : boolean;
   resendTimer : number;
   resendPerIteration : number;
+
+  // Rate Limit
+  rateLimit : {
+    enabled : boolean;
+    maxConnections : number;
+  }
 }
 
 /**
@@ -65,8 +72,10 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
   private _resendTimer ? : NodeJS.Timeout;
 
   // Server transport events
+  public onBeforeClientConnected : BaseEvent<ClientConnection> = new BaseEvent();
   public onClientConnected : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
   public onClientDisconnected : BaseEvent<ClientDisconnect> = new BaseEvent<ClientDisconnect>();
+  public onBeforeClientDataSent : BaseEvent<ClientData> = new BaseEvent<ClientData>();
   public onClientDataReceived : BaseEvent<ClientData> = new BaseEvent<ClientData>();
   public onClientDataSend : BaseEvent<ClientData> = new BaseEvent<ClientData>();
 
@@ -102,6 +111,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         self.stopResendQueue();
         self._resendQueue.clear();
         self._connections.clear();
+        await Router.invoke("transportBeforeConnect", self);
         self.onBeforeConnected.invoke();
         let currentOptions = self.options;
         let hostUrl = `${currentOptions.protocol}${currentOptions.host}`;
@@ -121,6 +131,13 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
         // Subscribe to connector events
         connector.addListener("connection", (client : WebSocket) => {
+          if(self.options.rateLimit.enabled && self.options.rateLimit.maxConnections > 0){
+            if(self._connections.size > self.options.rateLimit.maxConnections){
+              client.close(1013, "Server overload")
+              return;
+            }
+          }
+
           self.handleConnection(client);
         });
         connector.addListener("close", () => {
@@ -128,8 +145,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
           self.stopResendQueue();
           self._resendQueue.clear();
           self._connections.clear();
-          self.dispose().then(()=>{
-            self.onDisconnected.invoke(TransportCloseCode.ClosedByServer);
+          self.dispose().then(async ()=>{
+            await self.onDisconnected.invokeAsync(TransportCloseCode.ClosedByServer);
           })
         });
         connector.addListener("error", async (error) => {
@@ -137,7 +154,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
           self.isConnected = false;
 
           // Trying to reconnect
-          if(self.options.reconnectOptions?.autoReconnect && !self.reconnection.isReconnecting){
+          if(self.options.reconnect?.autoReconnect && !self.reconnection.isReconnecting){
             let reconnect = await self.reconnect();
             if(reconnect instanceof TransportErrorHandler) err = reconnect;
             else{
@@ -147,21 +164,24 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
           }
 
           // Dispose before error
-          self.dispose().then(()=>{
+          self.dispose().then(async ()=>{
+            await Router.invoke("transportError", self, err);
             self.onError.invoke(err);
             resolve(err);
           });
         });
-        connector.addListener("listening", () => {
+        connector.addListener("listening", async () => {
           Logger.success(`WebSocket Transport server is started at: ${self.options.host}:${self.options.port}`);
           self.isConnected = true;
+          await Router.invoke("transportConnected", self);
           self.onConnected.invoke(connector);
           self.startHeartbeat();
           self.startResendQueue();
           resolve(connector);
         });
-        connector.addListener("wsClientError", (error) => {
+        connector.addListener("wsClientError", async (error) => {
           let err = new TransportErrorHandler(`WebSocket Server transport error. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ClientException);
+          await Router.invoke("transportError", self, err);
           self.onError.invoke(err);
           resolve(err);
         });
@@ -218,8 +238,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         self.onReconnecting.invoke(true);
 
         // Attempts exhausted
-        if(self.options.reconnectOptions?.maxAttempts && self.options.reconnectOptions?.maxAttempts > 0){
-          if(self.reconnection.currentAttempt >= self.options.reconnectOptions?.maxAttempts){
+        if(self.options.reconnect?.maxAttempts && self.options.reconnect?.maxAttempts > 0){
+          if(self.reconnection.currentAttempt >= self.options.reconnect?.maxAttempts){
             self.reconnection = { isReconnecting : false, reconnectionTimer: null, currentAttempt: 0 };
             self.onReconnecting.invoke(false);
             let err = `Failed to reconnect. The maximum number of attempts has been exhausted`;
@@ -230,7 +250,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         }
 
         // Try to reconnect
-        let reconnectDelay = self.options.reconnectOptions?.delay ?? 5000;
+        let reconnectDelay = self.options.reconnect?.delay ?? 5000;
         self.reconnection.currentAttempt += 1;
         Logger.info(`Trying to restart WebSocket Transport. Attempt ${self.reconnection.currentAttempt}`);
         self.reconnection.reconnectionTimer = setTimeout(async ()=> {
@@ -272,35 +292,51 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
    * Send data for connection
    * @param data {Uint8Array} Raw data
    * @param to {ClientConnection|Set<ClientConnection>} Client connection or set of client connections
+   * TODO: Use Redis Streams
    */
-  public send(data: Uint8Array, to: ClientConnection | Set<ClientConnection>) : true | TransportErrorHandler {
+  public async send(data: Uint8Array, to: ClientConnection | Set<ClientConnection>) : Promise<true | TransportErrorHandler> {
     let self = this;
-    if(data.length === 0) {
-      return new TransportErrorHandler(`Failed to send data via transport. Data is empty.`, null, TransportError.CommandException);
-    }
-
-    /** Try send data using connection */
-    function trySend(connection : ClientConnection) {
-      let socket = connection.connector as WebSocket;
-      if(!socket || socket.readyState !== WebSocket.OPEN) {
-        self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
-        return new TransportErrorHandler(`Failed to send data via transport. Connection ${connection.id} socket is dead.`, null, TransportError.ConnectionFailed);
+    return new Promise(async (resolve, reject)=> {
+      if(data.length === 0) {
+        reject(new TransportErrorHandler(`Failed to send data via transport. Data is empty.`, null, TransportError.CommandException));
+        return;
       }
 
-      // Send data to client
-      socket.send(data);
-      self.onClientDataSend.invoke({ connection: connection, data: data });
-      return true;
-    }
+      /** Try to send data using connection */
+      async function trySend(connection : ClientConnection) {
+        try{
+          let socket = connection.connector as WebSocket;
+          if(!socket || socket.readyState !== WebSocket.OPEN) {
+            self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
+            reject(new TransportErrorHandler(`Failed to send data via transport. Connection ${connection.id} socket is dead.`, null, TransportError.ConnectionFailed));
+            return;
+          }
 
-    // Single client
-    if(!(to instanceof Set)) return trySend(to as ClientConnection);
+          // Send data to client
+          await self.invokeMiddleware(connection, data);
+          await Router.invoke("transportBeforeDataSend", self, { connection: connection, data: data });
+          self.onBeforeClientDataSent.invoke({ connection: connection, data: data});
+          socket.send(data);
+          self.onClientDataSend.invoke({ connection: connection, data: data });
+          await Router.invoke("transportDataSent", self, { connection: connection, data: data });
+          resolve(true);
+          return;
+        }catch(error : any) {
+          self.terminateConnection(connection.id, ClientDisconnectCode.ClientError);
+          reject(new TransportErrorHandler(`Failed to send data via transport. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ConnectionFailed));
+          return;
+        }
+      }
 
-    // Multiple clients
-    to.forEach((connection : ClientConnection) => {
-      trySend(connection);
-    })
-    return true;
+      // Single client
+      if(!(to instanceof Set)) return trySend(to as ClientConnection);
+
+      // Multiple clients
+      to.forEach((connection : ClientConnection) => {
+        trySend(connection);
+      })
+      resolve(true);
+    });
   }
 
   /**
@@ -308,37 +344,47 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
    * @param data {Uint8Array} Raw data
    * @param to {string|Set<string>} Connection ID or Set of IDs
    * @returns {true|TransportErrorHandler} Returns true or Transport Error Handler
+   * TODO: Use Redis Streams
    */
-  public sendById(data : Uint8Array, to: string | Set<string>) : true | TransportErrorHandler {
+  public async sendById(data : Uint8Array, to: string | Set<string>) : Promise<true | TransportErrorHandler> {
     let self = this;
     let recipients: Set<ClientConnection> = new Set();
+    return new Promise(async (resolve, reject)=> {
+      // Single connection
+      if (typeof to === "string") {
+        let connection = self._connections.get(to);
+        if (!connection) {
+          reject(new TransportErrorHandler(`Failed to send data via transport. Connection is not found for id: ${to}`));
+          return;
+        }
+        if (!connection.isAlive) {
+          self._resendQueue.enqueue({ connection: connection as ClientConnection, data: data});
+          reject(new TransportErrorHandler(`Failed to send data for ${to}. Connection is not alive.`, null, TransportError.ConnectionFailed));
+          return;
+        }
 
-    // Single connection
-    if (typeof to === "string") {
-      let connection = self._connections.get(to);
-      if (!connection) {
-        return new TransportErrorHandler(`Failed to send data via transport. Connection is not found for id: ${to}`);
-      }
-      if (!connection.isAlive) {
-        self._resendQueue.enqueue({ connection: connection as ClientConnection, data: data});
-        return new TransportErrorHandler(`Failed to send data for ${to}. Connection is not alive.`, null, TransportError.ConnectionFailed);
+        self.send(data, connection).then(result => {
+          resolve(result);
+        }).catch(error => reject(TransportErrorHandler.parse(error)));
+        return;
       }
 
-      return this.send(data, connection);
-    }
+      // For each connection ids
+      to.forEach((connectionId) => {
+        let connection = self._connections.get(connectionId);
+        if(connection && connection.isAlive) {
+          if(!recipients.has(connection)) recipients.add(connection);
+        }else{
+          if(connection && !connection.isAlive) self._resendQueue.enqueue({ connection: connection as ClientConnection, data: data});
+        }
+      });
 
-    // For each connection ids
-    to.forEach((connectionId) => {
-      let connection = self._connections.get(connectionId);
-      if(connection && connection.isAlive) {
-        if(!recipients.has(connection)) recipients.add(connection);
-      }else{
-        if(connection && !connection.isAlive) self._resendQueue.enqueue({ connection: connection as ClientConnection, data: data});
-      }
+      // Send to all available
+      self.send(data, recipients).then(result => {
+        resolve(result);
+      }).catch(error => reject(TransportErrorHandler.parse(error)));
+      return;
     });
-
-    // Send to all available
-    return this.send(data, recipients);
   }
 
   /**
@@ -446,6 +492,9 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
       connector: client
     };
 
+    // On before client connected
+    self.onBeforeClientConnected.invoke(connection);
+
     // Add connection to set
     self._connections.set(connectionId, connection);
     client.on('pong', () => {
@@ -457,8 +506,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     });
 
     // Add other connection events
-    client.on('message', (data) => {
-      self.handleMessage(connection, data);
+    client.on('message', async (data) => {
+      await self.handleMessage(connection, data);
     });
     client.on('close', () => {
       self.handleDisconnect(connectionId);
@@ -501,9 +550,10 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
    * @param connection {ClientConnection} client connection
    * @param data {string|Buffer|ArrayBuffer|Buffer[]} Message data
    * @private
+   * TODO: Use Redis Streams
    */
-  private handleMessage(connection : ClientConnection, data : string | Buffer | ArrayBuffer | Buffer[]) : void {
-    this.onClientDataReceived.invoke({
+  private async handleMessage(connection : ClientConnection, data : string | Buffer | ArrayBuffer | Buffer[]) : Promise<void> {
+    await this.onClientDataReceived.invokeAsync({
       connection: connection,
       data: BinaryConverter.toUint8Array(data as any)
     })
@@ -512,6 +562,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
   /**
    * Start resend queue
    * @private
+   * TODO: Use Redis Streams
    */
   private startResendQueue(){
     let self = this;
@@ -558,8 +609,14 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     noServer : false,
     skipUTF8Validation: false,
 
+    // Rate Limit Options
+    rateLimit: {
+      enabled: ParseUtils.bool(process?.env?.RATE_LIMIT ?? "true"),
+      maxConnections: parseInt(process?.env?.RATE_LIMIT_MAX_CONNECTIONS ?? "5000")
+    },
+
     // Reconnect options
-    reconnectOptions: {
+    reconnect: {
       autoReconnect : ParseUtils.bool(process?.env?.TRANSPORT_RECONNECT ?? "true"),
       maxAttempts: parseInt(process?.env?.TRANSPORT_RECONNECT_DELAY ?? "5"),
       delay: parseInt(process?.env?.TRANSPORT_RECONNECT_ATTEMPTS ?? "5000")

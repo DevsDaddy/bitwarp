@@ -23,7 +23,13 @@ export interface BitWarpOptions {
   // Debug options
   debug ? : boolean;
   logLevel ? : LogLevel;
+  analyzePackets ? : boolean;
 
   // Basic options
   transport ? : ITransport;
 }
+
+/**
+ * Middleware Handler
+ */
+export type MiddlewareHandler<TArgs extends any[] = any[]> = (...args: TArgs) => void | Promise<void>;

@@ -3,18 +3,21 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1007
+ * @build                 1059
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import {
-  BaseEvent, BinaryConverter,
+  BaseEvent,
+  BinaryConverter,
+  FastQueue,
   IClientTransport,
   ITransport,
   ITransportOptions,
-  Logger,
+  Logger, MiddlewareHandler,
+  RawPacket,
   Transport,
   TransportCloseCode,
   TransportError,
@@ -25,7 +28,7 @@ import {
  * WebSocket based client transport options
  */
 export interface WebSocketClientTransportOptions extends ITransportOptions {
-
+  resend : { enabled: boolean; delay : number; maxAttempts: number };
 }
 
 /**
@@ -34,6 +37,14 @@ export interface WebSocketClientTransportOptions extends ITransportOptions {
 export class WebSocketClientTransport extends Transport implements ITransport, IClientTransport {
   // Client Events
   public onDataReceived : BaseEvent<Uint8Array> = new BaseEvent<Uint8Array>();
+  public onPacketSent : BaseEvent<RawPacket> = new BaseEvent<RawPacket>();
+  public onPacketError : BaseEvent<{ packet: RawPacket, error: TransportErrorHandler }> = new BaseEvent<{ packet: RawPacket, error: TransportErrorHandler }>();
+  public onBeforePacketSend : BaseEvent<RawPacket> = new BaseEvent<RawPacket>();
+
+  // Resend queue
+  private _resendQueue : FastQueue<RawPacket> = new FastQueue();
+  private _resendTimer ? : NodeJS.Timeout;
+  private _resendAttempts : number = 0;
 
   /**
    * Create WebSocket based client transport
@@ -48,6 +59,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
   // Override transport getters
   public override get options(): WebSocketClientTransportOptions { return super.options as WebSocketClientTransportOptions; }
   public override get connector () : WebSocket { return super.connector as WebSocket; }
+  public get url() : string | undefined { let c = super.connector as WebSocket; return c?.url ?? undefined; }
 
   /**
    * Connect
@@ -64,6 +76,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
 
         // Create connector
         self.onBeforeConnected.invoke();
+        self.stopResend();
         let currentOptions = self.options;
         let url : string = `${currentOptions.protocol}${currentOptions.host}:${currentOptions.port}${currentOptions.path}`;
         let connector = new WebSocket(url);
@@ -71,7 +84,9 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         // Subscribe to connector events
         connector.addEventListener("open", async () => {
           Logger.success(`WebSocket Transport client is connected with: ${self.options.host}:${self.options.port}`);
+          self.updateConnector(connector);
           self.isConnected = true;
+          self.startResend();
           self.onConnected.invoke(connector);
           resolve(connector);
         });
@@ -83,7 +98,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
           // If not normal close
           if(!isNormalClose) {
             if(self.reconnection.isReconnecting) self.reconnection.isReconnecting = false;
-            if(self.options.reconnectOptions?.autoReconnect && !self.reconnection.isReconnecting){
+            if(self.options.reconnect?.autoReconnect && !self.reconnection.isReconnecting){
               let reconnect = await self.reconnect();
               if(reconnect instanceof TransportErrorHandler){
                 self.onError.invoke(new TransportErrorHandler(`Reconnect Error: ${reconnect?.message ?? "Unknown error"}`, reconnect?.stack ?? null, reconnect?.type ?? TransportError.ConnectionFailed));
@@ -92,6 +107,9 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
                 return;
               }
             }
+          }else{
+            self.stopResend()
+            self._resendQueue.clear();
           }
 
           // Is Normal close
@@ -163,8 +181,8 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         self.onReconnecting.invoke(true);
 
         // Attempts exhausted
-        if(self.options.reconnectOptions?.maxAttempts && self.options.reconnectOptions?.maxAttempts > 0){
-          if(self.reconnection.currentAttempt >= self.options.reconnectOptions?.maxAttempts){
+        if(self.options.reconnect?.maxAttempts && self.options.reconnect?.maxAttempts > 0){
+          if(self.reconnection.currentAttempt >= self.options.reconnect?.maxAttempts){
             self.reconnection = { isReconnecting : false, reconnectionTimer: null, currentAttempt: 0 };
             self.onReconnecting.invoke(false);
             let err = `Failed to reconnect. The maximum number of attempts has been exhausted`;
@@ -175,7 +193,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         }
 
         // Try to reconnect
-        let reconnectDelay = self.options.reconnectOptions?.delay ?? 5000;
+        let reconnectDelay = self.options.reconnect?.delay ?? 5000;
         self.reconnection.currentAttempt += 1;
         Logger.info(`Trying to restart WebSocket Transport. Attempt ${self.reconnection.currentAttempt}`);
         self.reconnection.reconnectionTimer = setTimeout(async ()=> {
@@ -214,6 +232,51 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
   }
 
   /**
+   * Send Raw Message using Transport
+   * @param rawPacket {RawPacket} Raw Data
+   * @returns {Promise<boolean>} Packet send state
+   */
+  public async send(rawPacket : RawPacket): Promise<void> {
+    let self = this;
+    try {
+      // Send an event
+      await self.onBeforePacketSend.invokeAsync(rawPacket);
+      await self.invokeMiddleware(rawPacket);
+
+      // If not connected - put to resend queue
+      if(!self.isConnected || self.connector.readyState !== WebSocket.OPEN) {
+        if(self.options.resend.enabled){
+          Logger.info(`Failed to send packet ${rawPacket.packetId}. Trying to resend.`)
+          self._resendQueue.enqueue(rawPacket);
+          return Promise.resolve();
+        }else{
+          await self.onPacketError.invokeAsync({
+            packet: rawPacket,
+            error: new TransportErrorHandler(`Failed to send packet ${rawPacket.packetId}. Connection lost.`, null, TransportError.ConnectionFailed)
+          })
+          return Promise.resolve();
+        }
+      }
+
+      // Send message via transport
+      self.connector.send(rawPacket.data);
+      await self.onPacketSent.invokeAsync(rawPacket);
+      return Promise.resolve();
+    }catch(error : any) {
+      if(self.options.resend.enabled){
+        Logger.info(`Failed to send packet ${rawPacket.packetId}. Trying to resend.`, error)
+        self._resendQueue.enqueue(rawPacket);
+        return Promise.resolve();
+      }else{
+        await self.onPacketError.invokeAsync({
+          packet: rawPacket,
+          error: new TransportErrorHandler(`Failed to send packet ${rawPacket.packetId}. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.ClientException)
+        })
+      }
+    }
+  }
+
+  /**
    * Handle raw socket data
    * @param data {any} WebSocket Data
    * @private
@@ -233,7 +296,47 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
       return;
     }
 
-    this.onDataReceived.invoke(uint8);
+    await this.onDataReceived.invokeAsync(uint8);
+  }
+
+  /**
+   * Start raw data resend
+   * @private
+   */
+  private startResend(): void {
+    let self = this;
+    if(!self.options.resend.enabled) return;
+    if(self._resendTimer) self.stopResend();
+
+    // Start heartbeat
+    self._resendTimer = setInterval(async ()=> {
+      let queueSize = self._resendQueue.size;
+      if(queueSize > 0){
+        for(let i= 0; i < queueSize; i++){
+          const msg = self._resendQueue.dequeue();
+          if(msg) await self.send(msg);
+        }
+
+        // Clean queue
+        self._resendAttempts += 1;
+        if(self._resendAttempts >= (self.options.resend.maxAttempts - 1)){
+          self._resendAttempts = 0;
+          self._resendQueue.clear();
+          self.stopResend();
+        }
+      }
+    }, self.options.resend.delay);
+  }
+
+  /**
+   * Stop raw data resend
+   * @private
+   */
+  private stopResend(): void {
+    let self = this;
+    if(!self._resendTimer || !self.options.resend.enabled) return;
+    clearInterval(self._resendTimer);
+    self._resendTimer = undefined;
   }
 
   /**
@@ -245,8 +348,14 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
     port: 8080,
     path: "/",
 
-    reconnectOptions: {
+    reconnect: {
       autoReconnect : true,
+      maxAttempts: 5,
+      delay: 5000
+    },
+
+    resend : {
+      enabled : true,
       maxAttempts: 5,
       delay: 5000
     }

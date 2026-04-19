@@ -9,12 +9,12 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { IHashProvider } from '../../proto/crypto';
+import { HashProvider } from '../../proto/crypto';
 
 /**
  * SHA-256 Implementation
  */
-export class SHA256 implements IHashProvider{
+export class SHA256 implements HashProvider{
   // Constants
   private static readonly K: number[] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -141,7 +141,7 @@ export class SHA256 implements IHashProvider{
 /**
  * SHA-512 Implementation
  */
-export class SHA512 implements IHashProvider{
+export class SHA512 implements HashProvider{
   // Constants
   private static readonly K: bigint[] = [
     0x428a2f98d728ae22n, 0x7137449123ef65cdn, 0xb5c0fbcfec4d3b2fn, 0xe9b5dba58189dbbcn,

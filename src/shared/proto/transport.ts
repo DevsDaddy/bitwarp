@@ -3,15 +3,19 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1007
+ * @build                 1056
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
 import { ErrorHandler } from '../types/handlers';
 import { ClientConnection, ClientData, ClientDisconnect } from './peer';
+import { Packet, RawPacket } from './packet';
+import { MiddlewareHandler } from '../types/common';
+import { Logger } from '../debug/logger';
+import { ErrorPacket } from './packets/error';
 
 /**
  * Basic Transport Errors
@@ -88,6 +92,18 @@ export class TransportErrorHandler {
   }
 
   /**
+   * Convert error handler to buffer
+   * @returns {Uint8Array} Error buffer
+   */
+  public toBuffer() : Uint8Array {
+    return ErrorPacket.encode({
+      message: this.message,
+      stack: this?.stack?.toString() ?? "",
+      code: this.type
+    });
+  }
+
+  /**
    * Try to parse from JSON
    * @param jsonData
    */
@@ -107,6 +123,16 @@ export class TransportErrorHandler {
    */
   public static fromError(error : Error) : TransportErrorHandler {
     return new TransportErrorHandler(error.message, null, TransportError.Unknown);
+  }
+
+  /**
+   * Get error handler from buffer
+   * @param buffer {Uint8Array} Error buffer
+   * @returns {TransportErrorHandler} Error handler
+   */
+  public static fromBuffer(buffer : Uint8Array) : TransportErrorHandler {
+    const decoded = ErrorPacket.decode(buffer);
+    return new TransportErrorHandler(decoded?.payload?.message ?? "Unknown error", decoded?.payload?.stack ?? null, decoded?.payload?.code as TransportError ?? TransportError.Unknown)
   }
 
   /**
@@ -167,6 +193,9 @@ export interface ITransport {
   disconnect(closeCode : TransportCloseCode) : Promise<TransportCloseCode|TransportErrorHandler>;
   reconnect() : Promise<any|TransportErrorHandler>;
   dispose() : Promise<void>;
+
+  // Middleware handler
+  use(handler : MiddlewareHandler) : void;
 }
 
 /**
@@ -174,32 +203,44 @@ export interface ITransport {
  */
 export interface IServerTransport extends ITransport{
   // Server Transport Events
+  onBeforeClientConnected : BaseEvent<ClientConnection>;
   onClientConnected : BaseEvent<ClientConnection>;
   onClientDisconnected : BaseEvent<ClientDisconnect>;
   onClientDataReceived : BaseEvent<ClientData>;
   onClientDataSend : BaseEvent<ClientData>;
+  onBeforeClientDataSent : BaseEvent<ClientData>;
 
   // Server transport methods
-  send(data : Uint8Array, to : ClientConnection | Set<ClientConnection>) : true | TransportErrorHandler;
-  sendById(data : Uint8Array, to : string | Set<string>) : true | TransportErrorHandler;
+  send(data: Uint8Array, to: ClientConnection | Set<ClientConnection>) : Promise<true | TransportErrorHandler>
+  sendById(data : Uint8Array, to : string | Set<string>) : Promise<true | TransportErrorHandler>;
 }
 
 /**
  * Client Transport
  */
 export interface IClientTransport extends ITransport{
+  // Transport URL
+  get url() : string | undefined;
+
+  // Raw data events
   onDataReceived : BaseEvent<Uint8Array>;
+  onBeforePacketSend : BaseEvent<RawPacket>;
+  onPacketSent : BaseEvent<RawPacket>;
+  onPacketError : BaseEvent<{ packet: RawPacket, error: TransportErrorHandler }>;
+
+  // Methods
+  send(rawPacket : RawPacket): Promise<void>
 }
 
 /**
  * Basic Transport Options
  */
 export interface ITransportOptions {
-  protocol ? : string,
+  protocol ? : string;
   host ? : string;
   port ? : number;
   path ? : string;
-  reconnectOptions ? : ReconnectOptions;
+  reconnect ? : ReconnectOptions;
 }
 
 /**
@@ -232,6 +273,9 @@ export abstract class Transport implements ITransport {
   private readonly _options : ITransportOptions;
   private _connector ? : any;
 
+  // Middlewares for transport
+  private _middlewares : Set<MiddlewareHandler> = new Set<MiddlewareHandler>();
+
   /**
    * Basic transport
    * @param options {ITransportOptions} transport options
@@ -254,7 +298,6 @@ export abstract class Transport implements ITransport {
    */
   public updateConnector(connector : any) : any | TransportErrorHandler {
     try {
-      if(this.isConnected || this.connector) return new TransportErrorHandler(`Failed to update connector. Connector is already used.`, null, TransportError.InitializationFailed);
       this._connector = connector;
     }catch(error : any) {
       return new TransportErrorHandler(`Failed to set transport connector. Error: ${error?.message ?? "Unknown error"}`, error?.stack ?? null, TransportError.InitializationFailed);
@@ -266,4 +309,44 @@ export abstract class Transport implements ITransport {
   public abstract disconnect(closeCode : TransportCloseCode): Promise<TransportCloseCode | TransportErrorHandler>;
   public abstract reconnect(): Promise<any|TransportErrorHandler>;
   public abstract dispose() : Promise<void>;
+
+  /**
+   * Add middleware
+   * @param handler {MiddlewareHandler} Middleware callback
+   */
+  public use(handler: MiddlewareHandler) : void {
+    let self = this;
+    if(self._middlewares.has(handler)) return;
+    self._middlewares.add(handler);
+  }
+
+  /**
+   * Invoke middleware
+   * @param args {any[]} Middleware
+   * @protected
+   */
+  protected async invokeMiddleware(...args : any[]) : Promise<void> {
+    let self = this;
+    const promises: Promise<void>[] = [];
+
+    for (const handler of self._middlewares) {
+      try {
+        const result = handler(...args);
+        if (result instanceof Promise) {
+          promises.push(result);
+        }
+      } catch (error : any) {
+        Logger.error(`Middleware exception: ${error?.message ?? "Unknown error"}`, error);
+      }
+    }
+
+    if (promises.length > 0) {
+      const results = await Promise.allSettled(promises);
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          Logger.error(`Middleware asynchronous error: ${result?.reason?.message ?? "Unknown error"}`, result.reason);
+        }
+      }
+    }
+  }
 }

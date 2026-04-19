@@ -9,12 +9,12 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { IHashProvider } from '../../proto/crypto';
+import { HashProvider } from '../../proto/crypto';
 
 /**
  * MD5 Hash implementation
  */
-export class MD5 implements IHashProvider {
+export class MD5 implements HashProvider {
   // Current Text
   private text : string = '';
 

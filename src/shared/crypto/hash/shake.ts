@@ -9,12 +9,12 @@
  * @updated               10.04.2026
  */
 /* Import required modules */
-import { IHashProvider } from '../../proto/crypto';
+import { HashProvider } from '../../proto/crypto';
 
 /**
  * Shake-256 Hash
  */
-export class Shake256 implements IHashProvider{
+export class Shake256 implements HashProvider{
   /* Shake 256 Constants */
   private static KECCAK_ROUNDS = 24;
   private static RATE_BYTES = 136;

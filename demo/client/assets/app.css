@@ -12,6 +12,10 @@
 /*
     1. GENERAL STYLES
  */
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+/* HTML Containers */
 * {
     box-sizing: border-box;
 }
@@ -21,24 +25,272 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
+    background: #222B32;
+    color: #fff;
+    font-family: "Inter", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
 }
 
 /*
     2. TYPOGRAPHY
  */
+/* Material icons */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 100, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-outlined.active {
+    font-variation-settings: 'FILL' 1, 'wght' 100, 'GRAD' 0, 'opsz' 24;
+}
+.active .material-symbols-outlined{
+    font-variation-settings: 'FILL' 1, 'wght' 100, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Font colors */
+.font-bold{
+    font-weight: bold;
+}
+.font-green {
+    color: #47cd00;
+}
+.font-orange {
+    color: #cd6d00;
+}
+.font-red {
+    color: #e10000;
+}
 
 /*
     3. LAYOUT
  */
+/* Preloader layout */
+.app_loader{
+    position: fixed;
+    z-index: 9999;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: center;
+    justify-content: space-between;
+    align-items: center;
+    padding: 50px;
+    background: rgba(0, 0, 0, 0.5);
+}
+.app_loader.hidden{
+    background: rgba(0, 0, 0, 0);
+    visibility: hidden;
+    opacity: 0;
+    height: 0;
+    bottom: auto;
+    overflow: hidden;
+}
+
+/* App container */
+.app_container{
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+}
+.app_header{
+    background: #32424f;
+    width: 100%;
+    padding: 20px;
+    border-bottom: 1px solid #475d6e;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-content: center;
+    align-items: center;
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+.app_content{
+    width: 100%;
+    height: 100%;
+    flex: 1 auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+}
+
+/* Toast container */
+#toast-container{
+    padding: 20px;
+}
 
 /*
     4. COMPONENTS
  */
+/* Loader component */
+.loader {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-block;
+    border-top: 3px solid #FFF;
+    border-right: 3px solid transparent;
+    box-sizing: border-box;
+    animation: glow-rotation 1s linear infinite;
+}
+
+/* Connect Icon */
+.connect{
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-content: center;
+    align-items: center;
+}
+.connect [data-label="connection"]{
+    font-weight: bold;
+}
+.online_icon{
+    position: relative;
+    width: 10px;
+    height: 10px;
+    min-width: 10px;
+    min-height: 10px;
+    border-radius: 20px;
+}
+.online_icon.online{
+    background: rgb(200, 255, 0);
+    animation: glow-online 2s linear infinite;
+}
+.online_icon.offline{
+    background: rgb(187 0 18);
+}
+
+/* Connection Fields */
+.connection{
+    position: relative;
+    padding: 5px 5px;
+    display: flex;
+    gap: 5px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-content: center;
+    align-items: center;
+    background: #222B32;
+    border: 1px solid #445867;
+    border-radius: 50px;
+    cursor: pointer;
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
+}
+.connection .inner_icon{
+    position: relative;
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 60px;
+    padding: 5px;
+}
+.connection .url { margin-left: 5px; margin-right: 10px; }
+.connection .inner_icon .material-symbols-outlined{
+    font-size: 22px;
+}
 
 /*
     5. UTILS
  */
+/* Blur utils */
+.blur-bg-10{
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+/* Transitions */
+.smooth-250{
+    -webkit-transition: all ease-in-out 0.25s;
+    -moz-transition: all ease-in-out 0.25s;
+    -ms-transition: all ease-in-out 0.25s;
+    -o-transition: all ease-in-out 0.25s;
+    transition: all ease-in-out 0.25s;
+}
+.smooth-300{
+    -webkit-transition: all ease-in-out 0.3s;
+    -moz-transition: all ease-in-out 0.3s;
+    -ms-transition: all ease-in-out 0.3s;
+    -o-transition: all ease-in-out 0.3s;
+    transition: all ease-in-out 0.3s;
+}
+.smooth-500{
+    -webkit-transition: all ease-in-out 0.5s;
+    -moz-transition: all ease-in-out 0.5s;
+    -ms-transition: all ease-in-out 0.5s;
+    -o-transition: all ease-in-out 0.5s;
+    transition: all ease-in-out 0.5s;
+}
+.smooth-1000{
+    -webkit-transition: all ease-in-out 1s;
+    -moz-transition: all ease-in-out 1s;
+    -ms-transition: all ease-in-out 1s;
+    -o-transition: all ease-in-out 1s;
+    transition: all ease-in-out 1s;
+}
+.smooth-1500{
+    -webkit-transition: all ease-in-out 1.5s;
+    -moz-transition: all ease-in-out 1.5s;
+    -ms-transition: all ease-in-out 1.5s;
+    -o-transition: all ease-in-out 1.5s;
+    transition: all ease-in-out 1.5s;
+}
+.smooth-2000{
+    -webkit-transition: all ease-in-out 2s;
+    -moz-transition: all ease-in-out 2s;
+    -ms-transition: all ease-in-out 2s;
+    -o-transition: all ease-in-out 2s;
+    transition: all ease-in-out 2s;
+}
+
+/* Hidden */
+.hidden{
+    display: none !important;
+}
 
 /*
     6. ANIMATIONS
  */
+@keyframes glow-online {
+    0% {
+        box-shadow: 0 0 20px rgba(200, 255, 0, 0);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(200, 255, 0, 0.9);
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(200, 255, 0, 0);
+    }
+}
+
+@keyframes glow-rotation {
+    0% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0);
+        transform: rotate(0deg);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        transform: rotate(180deg);
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0);
+        transform: rotate(360deg);
+    }
+}

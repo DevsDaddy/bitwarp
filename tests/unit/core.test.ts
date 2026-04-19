@@ -3,16 +3,23 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1003
+ * @build                 1005
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
-import { describe, it, expect } from 'vitest';
-import { Color, RGBValue } from '../../src/shared';
-import { UUID } from '../../src/shared';
-import { FastQueue } from '../../src/shared';
+import { describe, expect, it } from 'vitest';
+import {
+  BaseEvent,
+  Color,
+  ErrorHandler,
+  ErrorType,
+  FastQueue,
+  RGBValue, TransportError,
+  TransportErrorHandler,
+  UUID
+} from '../../src/shared';
 
 /**
  * Describe tests
@@ -363,4 +370,50 @@ describe('BitWrap Core Tests', () => {
       expect(objQueue.peek()?.id).toBe(2);
     });
   });
+
+  // Test Events
+  describe('Events Test', async () => {
+    it('Invoke test', async () => {
+      let syncEvent : BaseEvent<number> = new BaseEvent<number>();
+      let asyncEvent : BaseEvent<number> = new BaseEvent<number>();
+      let sum = 0;
+
+      syncEvent.addListener(num => {
+        sum += num;
+      });
+      asyncEvent.addListener(async (num: number) => {
+        sum += num;
+        return Promise.resolve();
+      });
+      syncEvent.invoke(5);
+      await asyncEvent.invokeAsync(2);
+      expect(sum).toBe(7);
+    })
+  });
+
+  // Handler Test
+  describe('Error Handler test', () => {
+    it('Buffer handler test', async () => {
+      let handler = new ErrorHandler('This is an error', null, ErrorType.ClientException);
+      let handlerBuffer = handler.toBuffer();
+      expect(handler).toEqual(ErrorHandler.fromBuffer(handlerBuffer));
+    })
+    it('JSON Handler test', async () => {
+      let handler = new ErrorHandler('This is an error', null, ErrorType.ClientException);
+      let jsonHandler = handler.toJSON();
+      expect(handler).toEqual(ErrorHandler.fromJSON(jsonHandler));
+    })
+  })
+  describe('Transport Error Handler test', () => {
+    it('Buffer handler test', async () => {
+      let handler = new TransportErrorHandler('This is an error', null, TransportError.ClientException);
+      let handlerBuffer = handler.toBuffer();
+      expect(handler).toEqual(TransportErrorHandler.fromBuffer(handlerBuffer));
+    })
+    it('JSON Handler test', async () => {
+      let handler = new TransportErrorHandler('This is an error', null, TransportError.ClientException);
+      let jsonHandler = handler.toJSON();
+      expect(handler).toEqual(TransportErrorHandler.fromJSON(jsonHandler));
+    })
+  })
 });

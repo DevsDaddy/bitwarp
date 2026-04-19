@@ -3,11 +3,14 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1005
+ * @build                 1024
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               18.04.2026
  */
+import { CryptoProvider } from './crypto';
+import { HandshakeStep } from './packets/handshake';
+
 /**
  * Connection
  */
@@ -53,4 +56,8 @@ export interface ClientData {
 export interface Peer {
   id : string;
   connection : ClientConnection;
+  encryptor ? : CryptoProvider;
+  clientKey : Uint8Array;
+  handshakeComplete : boolean;
+  handshakeStep : HandshakeStep;
 }

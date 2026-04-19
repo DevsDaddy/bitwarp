@@ -12,12 +12,55 @@
   <!-- Base Meta -->
 
   <!-- Styles -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
   <link rel="stylesheet" href="./assets/app.css" />
   <!-- Styles -->
 </head>
 <body>
+  <!-- Application preloader -->
+  <div id="preloader" class="app_loader blur-bg-10 smooth-500">
+    <div></div>
+    <span class="loader"></span>
+    <div class="status" data-label="loading_state"></div>
+  </div>
+  <!-- Application preloader -->
+
+  <!-- Application container -->
+  <div id="application" class="app_container">
+    <div class="app_header">
+      <div class="connect">
+        <div class="online_icon offline smooth-250"></div>
+        <span data-label="connection"></span>
+        <span data-label="ping"></span>
+      </div>
+      <div class="connection">
+        <div class="inner_icon hidden" data-component="secured_icon" id="secured_connection">
+          <span class="material-symbols-outlined font-green active">shield_locked</span>
+        </div>
+        <div class="inner_icon hidden" data-component="unsecured_icon" id="unsecured_connection">
+          <span class="material-symbols-outlined font-red active">gpp_bad</span>
+        </div>
+        <div class="inner_icon hidden" data-component="compressed_icon" id="compressed_connection">
+          <span class="material-symbols-outlined font-green active">compress</span>
+        </div>
+        <div class="inner_icon hidden" data-component="uncompressed_icon" id="uncompressed_connection">
+          <span class="material-symbols-outlined font-red active">raw_on</span>
+        </div>
+        <div class="url" data-label="url" id="server_url"></div>
+      </div>
+    </div>
+    <div class="app_content hidden" data-layout="app_content">
+      <b>blabla bla</b>
+    </div>
+  </div>
+  <!-- Application container -->
 
   <!-- Application scripts -->
+  <script src="https://code.jquery.com/jquery-4.0.0.min.js" integrity="sha256-OaVG6prZf4v69dPg6PhVattBXkcOWQB62pdZ3ORyrao=" crossorigin="anonymous"></script>
+  <script src="https:////cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
+  <script src="https://unpkg.com/tippy.js@6"></script>
   <script src="./app.ts" type="module"></script>
   <!-- Application scripts -->
 </body>

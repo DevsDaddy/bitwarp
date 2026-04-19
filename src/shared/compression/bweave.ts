@@ -6,14 +6,15 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1001
+ * @build                 1019
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               18.04.2026
  */
 /* Import required modules */
-import { CompressionProvider, ICompressionProvider, ICompressionOptions } from '../proto/compression';
+import { CompressionProvider, ICompressionOptions, ICompressionProvider } from '../proto/compression';
 import { BWeave, BWeaveMode, BWeaveOptions } from 'bweave';
+import * as trace_events from 'node:trace_events';
 
 /**
  * Add compression options
