@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1077
+ * @build                 1078
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -39,13 +39,13 @@ import {
   QuarkDashProvider,
   TransportCloseCode,
   TransportErrorHandler,
-  UUID
+  UUID,
+  PingPacket
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
 import { FlashBuffer } from 'flash-buffer';
 import { Router } from './router';
-import { PingPacket } from '../shared/proto/packets/ping';
 
 /* Export Libraries */
 export * from "./transport/websocket";
