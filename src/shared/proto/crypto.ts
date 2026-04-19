@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1019
+ * @build                 1037
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /**
  * Hash Provider
@@ -42,6 +42,8 @@ export interface CryptoProvider {
   // Encrypt / Decrypt
   encrypt(decryptedData: Uint8Array): Promise<Uint8Array>;
   decrypt(encryptedData: Uint8Array): Promise<Uint8Array>;
+  encryptSync(decryptedData: Uint8Array) : Uint8Array;
+  decryptSync(encryptedData: Uint8Array) : Uint8Array;
 
   // Dispose
   dispose() : Promise<void>;

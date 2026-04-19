@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1000
+ * @build                 1019
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               10.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { Logger, BaseEvent, ErrorHandler, ErrorType } from '../../dist/';
@@ -45,7 +45,15 @@ class Application {
     }
 
     // Add Events
+    self.client.onHandshakeStarted.addListener(()=>{
+      self.setLabel("loading_state", "Encryption establish...");
+    });
+    self.client.onHandshakeComplete.addListener(()=>{
+      self.setLabel("loading_state", "Initialized.");
+      self.onInitialized.invoke();
+    });
     self.client.onStopped.addListener(() => {
+      self.updateStatusBar();
       Logger.success(`Application is stopped, because BitWarp Client is stopped.`);
     });
     self.client.onInitializationError.addListener((error)=> {
@@ -56,8 +64,61 @@ class Application {
       // @ts-ignore
       self.onError.invoke(error)
     });
-    self.client.onInitialized.addListener(()=> { self.onInitialized.invoke() });
+    self.client.onInitialized.addListener(()=> {
+      self.updateStatusBar();
+      self.setLabel("loading_state", "Connected. Wait for handshake...");
+    });
+    self.client.onPingChanged.addListener((ping)=> {
+      self.setLabel("ping", `(Ping: ${ping} ms)`);
+    });
+    self.client.onReconnecting.addListener((isReconnecting)=> {
+      if(isReconnecting) self.setLabel("ping", "");
+      self.updateStatusBar();
+      self.setLabel("loading_state", isReconnecting ? "Reconnecting..." : "Reconnected. Wait for handshake...");
+      self.toggleLoader(isReconnecting);
+    });
     await self.client.connect();
+  }
+  // #endregion
+
+  // #region Components
+  /**
+   * Set label value
+   * @param id {string} Label id
+   * @param value {string} Label text
+   */
+  public setLabel(id : string, value : string) {
+    let label = document.querySelectorAll(`[data-label="${id}"]`);
+    if (label) {
+      label.forEach((item) => {
+        item.innerHTML = value;
+      });
+    }
+  }
+
+  /**
+   * Toggle loader
+   * @param isEnabled {boolean} is enabled
+   */
+  public toggleLoader(isEnabled: boolean) {
+    let loader = document.getElementById('preloader');
+    if (loader) {
+      loader.classList.toggle("hidden", !isEnabled);
+    }
+  }
+
+  /**
+   * Update status bar
+   */
+  public updateStatusBar(){
+    let self = this;
+
+    // Online status
+    document.querySelectorAll('.online_icon').forEach((item) => {
+      item.classList.toggle('online', self.client.isConnected);
+      item.classList.toggle('offline', !self.client.isConnected);
+    })
+    self.setLabel("connection", self.client.isConnected ? "Connected" : "Offline");
   }
   // #endregion
 }
@@ -72,14 +133,23 @@ class Application {
   }));
 
   // Add application events
+  app.updateStatusBar();
+  app.toggleLoader(true);
+  app.setLabel("loading_state", "Initializing...");
   app.onInitialized.addListener(()=> {
     Logger.success(`Demo application was initialized`);
+    app.toggleLoader(false);
+    app.updateStatusBar();
   })
   app.onInitializationError.addListener((error)=> {
+    app.setLabel("loading_state", "Initialization Error");
     Logger.error(`Demo application failed with error: ${error?.message ?? "Unknown error"}`);
+    app.updateStatusBar();
   });
   app.onError.addListener((error)=> {
     Logger.error(`Application error: ${error?.message ?? "Unknown error"}`);
+    app.updateStatusBar();
+    // TODO: Show Error Layout
   });
 
   // Initialize application

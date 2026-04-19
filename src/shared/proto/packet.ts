@@ -3,14 +3,15 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1029
+ * @build                 1047
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
 import { PROTOCOL_MAGIC } from '../constants';
+import { CryptoProvider } from './crypto';
 
 /**
  * Raw Packet
@@ -33,8 +34,9 @@ export enum PacketType {
   SYNC_ACTION = 0x7,
   STREAM_CONTROL = 0x8,
   RAW_BINARY = 0x9,
-  ERROR = 0xA
-  // Reserved for future extensions 0xB-0xF
+  ERROR = 0xA,
+  PING = 0xB,
+  // Reserved for future extensions 0xC-0xF
 }
 
 /**
@@ -78,6 +80,24 @@ export interface IPacketData {
  * Base packet implementation
  */
 export class BasePacket {
+  private static _cryptoProvider ? : CryptoProvider;
+
+  /**
+   * Set crypto provider
+   * @param provider {CryptoProvider} Crypto provider
+   */
+  public static setCryptoProvider(provider : CryptoProvider) : void {
+    this._cryptoProvider = provider;
+  }
+
+  /**
+   * Get crypto provider
+   * @returns {CryptoProvider} crypto provider
+   */
+  public static getCryptoProvider() : CryptoProvider | undefined {
+    return this._cryptoProvider;
+  }
+
   /**
    * Encode packet
    * @param body {Uint8Array} Serialized packet body
@@ -88,6 +108,11 @@ export class BasePacket {
    */
   public static encode(body: Uint8Array | any, requestId = 0, flags = 0, packetType = PacketType.HANDSHAKE): Uint8Array {
     if(!(body instanceof Uint8Array)) throw new Error(`Base packet class data argument must be a Uint8Array`);
+
+    // Work with encryption
+    if(this._cryptoProvider) body = this._cryptoProvider.encryptSync(body);
+
+    // Create buffer
     const buf = new FlashBuffer();
     HeaderEncoder.write(buf, {
       type: packetType,
@@ -109,7 +134,8 @@ export class BasePacket {
     buf.writeBytes(buffer);
     buf.reset();
     const header = HeaderEncoder.read(buf);
-    const body = buf.readBytes(header.payloadLength);
+    let body = buf.readBytes(header.payloadLength);
+    if(this._cryptoProvider) body = this._cryptoProvider.decryptSync(body);
     return { header, body };
   }
 }

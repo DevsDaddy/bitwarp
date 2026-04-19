@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1047
+ * @build                 1065
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { CryptoProvider, CryptoProviderOptions, KeyPair } from '../../proto/crypto';
@@ -109,6 +109,28 @@ export class QuarkDashProvider implements CryptoProvider {
     if(this._isDisposed) return Promise.reject(new Error("Failed to decrypt. QuarkDash is disposed. Regenerate keys and try again."));
     if(!this._isSessionReady) return Promise.reject(new Error("Failed to decrypt. QuarkDash session is not initialized."));
     return this._instance.decrypt(encryptedData);
+  }
+
+  /**
+   * Encrypt data sync
+   * @param decryptedData {Uint8Array} Raw decrypted bytes buffer
+   * @returns {Uint8Array} Returns encrypted bytes buffer
+   */
+  public encryptSync(decryptedData: Uint8Array): Uint8Array {
+    if(this._isDisposed) throw new Error("Failed to encrypt. QuarkDash is disposed. Regenerate keys and try again.");
+    if(!this._isSessionReady) throw new Error("Failed to encrypt. QuarkDash session is not initialized.");
+    return this._instance.encryptSync(decryptedData);
+  }
+
+  /**
+   * Decrypt data sync
+   * @param encryptedData {Uint8Array} Raw encrypted bytes buffer
+   * @returns {Uint8Array} Returns decrypted bytes buffer
+   */
+  public decryptSync(encryptedData: Uint8Array): Uint8Array {
+    if(this._isDisposed) throw new Error("Failed to decrypt. QuarkDash is disposed. Regenerate keys and try again.");
+    if(!this._isSessionReady) throw new Error("Failed to decrypt. QuarkDash session is not initialized.");
+    return this._instance.decryptSync(encryptedData);
   }
 
   /**

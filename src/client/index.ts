@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1059
+ * @build                 1078
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import {
@@ -32,10 +32,11 @@ import {
   TransportCloseCode,
   TransportErrorHandler,
   UUID,
-  QuarkDashProvider
+  QuarkDashProvider, PING_DELAY
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 import { FlashBuffer } from 'flash-buffer';
+import { PingPacket } from '../shared/proto/packets/ping';
 
 /* Export Libraries */
 export * from "./transport/websocket";
@@ -65,6 +66,8 @@ export class BitWarpClient {
   public readonly onInitializationError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
   public readonly onStopped : BaseEvent = new BaseEvent();
   public readonly onError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
+  public readonly onPingChanged : BaseEvent<number> = new BaseEvent<number>();
+  public readonly onReconnecting : BaseEvent<boolean> = new BaseEvent<boolean>();
 
   // Handshake events
   public readonly onHandshakeStarted : BaseEvent = new BaseEvent();
@@ -79,6 +82,8 @@ export class BitWarpClient {
   // Encryptors
   private _encryptProvider ? : CryptoProvider;
   private _publicKey ? : Uint8Array;
+  private _ping ? : number;
+  private _pintTimer ? : any;
 
   // #region basic setup and fields
   /**
@@ -106,6 +111,8 @@ export class BitWarpClient {
     this._isHandshakeComplete = false;
     this._handshakeStep = HandshakeStep.INIT;
     this._connectedTime = 0;
+    this._ping = undefined;
+    clearInterval(this._pintTimer);
   }
 
   // #region Client Fields
@@ -119,6 +126,7 @@ export class BitWarpClient {
   public get isDebug() : boolean { return this._isDebug; };
   public get isHandshakeComplete (): boolean { return this._isHandshakeComplete; };
   public get uptime() : number { return (!this._isConnected || this._connectedTime === 0) ? 0 : Date.now() - this._connectedTime; }
+  public get ping() : number | undefined { return this._ping; }
   // #endregion
 
   // #region Client connection
@@ -153,6 +161,9 @@ export class BitWarpClient {
       Logger.info(`Transport initialized for: ${self._performance.measure(PERF_CONSTANTS.TRANSPORT_MEASURE, PERF_CONSTANTS.TRANSPORT_CREATED, PERF_CONSTANTS.TRANSPORT_CONNECTED)} ms`)
       self.onInitialized.invoke();
       self._connectedTime = Date.now();
+      self._isConnected = true;
+      self._ping = undefined;
+      clearInterval(self._pintTimer);
 
       // Handshake
       await self.startHandshake();
@@ -176,6 +187,9 @@ export class BitWarpClient {
       self.dispose();
       self.onStopped.invoke();
     })
+    self.transport.onReconnecting.addListener((isReconnecting)=> {
+      self.onReconnecting.invoke(isReconnecting);
+    });
     await self._transport.connect();
   }
 
@@ -196,6 +210,8 @@ export class BitWarpClient {
   private dispose() {
     let self = this;
     self._isConnected = false;
+    self._ping = undefined;
+    clearInterval(self._pintTimer);
     self.unsubscribeAllTransport();
     self.transport.updateConnector(undefined);
   }
@@ -289,6 +305,10 @@ export class BitWarpClient {
           break;
         }
         case PacketType.SYNC_OBJECT: {
+          break;
+        }
+        case PacketType.PING: {
+          await self.processPingPacket(message);
           break;
         }
         default: {
@@ -417,6 +437,43 @@ export class BitWarpClient {
 
     self._performance.mark(PERF_CONSTANTS.HANDSHAKE_COMPLETE);
     Logger.success(`Handshake completed in ${self._performance.measure(PERF_CONSTANTS.HANDSHAKE_MEASURE, PERF_CONSTANTS.HANDSHAKE_STARTED, PERF_CONSTANTS.HANDSHAKE_COMPLETE)} ms. Ready for messaging with server.`);
+
+    // Run ping
+    self._pintTimer = setInterval(async ()=> {
+      await self.sendPingPacket();
+    }, PING_DELAY);
+  }
+
+  /**
+   * Send ping packet
+   * @private
+   */
+  private async sendPingPacket(){
+    // Create ping packet
+    let self = this;
+    if(!self._encryptProvider) return Promise.reject(new Error(`Failed to send ping packet. Encryption provider is not defined. Restart server handshake and try again.`));
+    PingPacket.setCryptoProvider(self._encryptProvider);
+    let pingPacket = PingPacket.encode({
+      timestamp: Date.now()
+    });
+    await self.transport.send({ packetId: UUID.v4(), data: self.preparePacket(pingPacket) });
+    return Promise.resolve();
+  }
+
+  /**
+   * Process ping packet
+   * @param message {Uint8Array} Raw message
+   * @private
+   */
+  private async processPingPacket(message : Uint8Array){
+    let self = this;
+    if(!self._encryptProvider) return Promise.reject(new Error(`Failed to send ping packet. Encryption provider is not defined. Restart server handshake and try again.`));
+    PingPacket.setCryptoProvider(self._encryptProvider);
+    let pingData = PingPacket.decode(message);
+    let ping = Date.now() - pingData.payload.timestamp;
+    self._ping = ping;
+    self.onPingChanged.invoke(ping);
+    Logger.info(`Connection ping: ${ping}ms`);
   }
   // #endregion
 

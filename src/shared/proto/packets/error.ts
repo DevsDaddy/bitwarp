@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1031
+ * @build                 1049
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
@@ -51,7 +51,7 @@ export class ErrorPacket extends BasePacket {
   /**
    * Deserialize packet
    * @param data {Uint8Array} Raw Error Packet
-   * @returns {HandshakePayload} Error Payload
+   * @returns {ErrorPayload} Error Payload
    */
   public static deserialize(data: Uint8Array): ErrorPayload {
     const buf = new FlashBuffer();

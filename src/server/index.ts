@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1059
+ * @build                 1077
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import {
@@ -36,15 +36,16 @@ import {
   PERF_CONSTANTS,
   Performance,
   PROTOCOL_VERSION,
+  QuarkDashProvider,
   TransportCloseCode,
   TransportErrorHandler,
-  UUID,
-  QuarkDashProvider
+  UUID
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
 import { FlashBuffer } from 'flash-buffer';
 import { Router } from './router';
+import { PingPacket } from '../shared/proto/packets/ping';
 
 /* Export Libraries */
 export * from "./transport/websocket";
@@ -348,6 +349,10 @@ export class BitWarpServer {
         case PacketType.SYNC_OBJECT: {
           break;
         }
+        case PacketType.PING: {
+          await self.processPingPacket(clientData, clientData.data);
+          break;
+        }
         default: {
           let error = new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ServerException);
           Logger.error(`Wrong packet type received from connection ${clientData.connection.id}: ${headerData.type}`);
@@ -550,6 +555,22 @@ export class BitWarpServer {
     });
 
     return foundPeer;
+  }
+
+  /**
+   * Process ping packet
+   * @param clientData {ClientData} Connection
+   * @param raw {Uint8Array} Raw packet
+   * @private
+   */
+  private async processPingPacket(clientData : ClientData, raw : Uint8Array) : Promise<void> {
+    let self = this;
+    let encryptor = self.getPeerByConnectionId(clientData.connection.id)?.encryptor;
+    if(encryptor) PingPacket.setCryptoProvider(encryptor);
+    let pingPacket = PingPacket.decode(raw);
+    let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
+    await self.transport.send(self.preparePacket(encoded), clientData.connection)
+    return Promise.resolve();
   }
   // #endregion
 

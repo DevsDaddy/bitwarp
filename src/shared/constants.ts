@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1026
+ * @build                 1039
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /**
  * Performance Constants
@@ -23,3 +23,4 @@ export const PERF_CONSTANTS = {
 /* Protocol Magic Byte and Version */
 export const PROTOCOL_MAGIC = 0x4E42;
 export const PROTOCOL_VERSION = 1;
+export const PING_DELAY = 10000;
