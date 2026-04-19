@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1002
+ * @build                 1010
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -62,9 +62,7 @@ class Application {
 (async () => {
   // Create application instance
   Logger.head("Welcome to demo application");
-  const app = new Application(new BitWarpServer({
-    cryptoProvider: false
-  }));
+  const app = new Application(new BitWarpServer());
 
   // Add application events
   app.onInitialized.addListener(()=> {

@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1047
+ * @build                 1056
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -220,7 +220,7 @@ export interface IServerTransport extends ITransport{
  */
 export interface IClientTransport extends ITransport{
   // Transport URL
-  get url() : string;
+  get url() : string | undefined;
 
   // Raw data events
   onDataReceived : BaseEvent<Uint8Array>;

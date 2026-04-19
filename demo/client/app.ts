@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1021
+ * @build                 1032
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -44,6 +44,9 @@ class Application {
       return;
     }
 
+    // Add tooltips
+    self.setupTooltips();
+
     // Add Events
     self.client.onHandshakeStarted.addListener(()=>{
       self.setLabel("loading_state", "Encryption establish...");
@@ -77,7 +80,7 @@ class Application {
       self.updateStatusBar();
       self.setLabel("loading_state", isReconnecting ? "Reconnecting..." : "Reconnected. Wait for handshake...");
       self.toggleLoader(isReconnecting);
-      self.toggleLayout("app_content", isReconnecting);
+      self.toggleLayout("app_content", !isReconnecting);
     });
     await self.client.connect();
   }
@@ -121,6 +124,18 @@ class Application {
       item.classList.toggle('offline', !self.client.isConnected);
     })
     self.setLabel("connection", self.client.isConnected ? "Connected" : "Offline");
+
+    // URL
+    let transportURL = self.client.transport?.url ?? "ws://localhost/";
+    self.setLabel("url", self.getFormattedUrl(transportURL));
+
+    // Secured / Compressed icons
+    let isSecured = (self.client.options.cryptoProvider) ? true : false;
+    let isCompressed = (self.client.options.compression) ? true : false;
+    self.toggleComponent("secured_icon", isSecured);
+    self.toggleComponent("unsecured_icon", !isSecured);
+    self.toggleComponent("compressed_icon", isCompressed);
+    self.toggleComponent("uncompressed_icon", !isCompressed);
   }
 
   /**
@@ -133,6 +148,47 @@ class Application {
       item.classList.toggle('hidden', !isEnabled);
     });
   }
+
+  /**
+   * Toggle component
+   * @param component {string} component id
+   * @param isEnabled {boolean} is enabled
+   */
+  public toggleComponent(component: string, isEnabled: boolean) {
+    document.querySelectorAll(`[data-component="${component}"]`).forEach((item) => {
+      item.classList.toggle('hidden', !isEnabled);
+    });
+  }
+
+  /**
+   * Get formatted URL
+   * @param url {string} url
+   * @returns {string} formatted url
+   */
+  public getFormattedUrl(url : string) : string{
+    let green = "<span class='font-green font-bold'>";
+    let orange = "<span class='font-orange font-bold'>";
+    let end = "</span>"
+    if(url.startsWith("http://")) url = url.replace("http://", `${orange}http://${end}`);
+    if(url.startsWith("ws://")) url = url.replace("ws://", `${orange}ws://${end}`);
+    if(url.startsWith("https://")) url = url.replace("https://", `${green}https://${end}`);
+    if(url.startsWith("wss://")) url = url.replace("wss://", `${green}wss://${end}`);
+    return url;
+  }
+
+  // Setup tooltips
+  private setupTooltips(){
+    // @ts-ignore
+    tippy('#secured_connection', { content: 'Secured (encrypted) connection', });
+    // @ts-ignore
+    tippy('#unsecured_connection', { content: 'Unsecured connection', });
+    // @ts-ignore
+    tippy('#compressed_connection', { content: 'Compression enabled', });
+    // @ts-ignore
+    tippy('#uncompressed_connection', { content: 'Uncompressed connection', });
+    // @ts-ignore
+    tippy('#server_url', { content: 'Connection url', });
+  }
   // #endregion
 }
 
@@ -142,9 +198,7 @@ class Application {
 (async () => {
   // Create application instance
   Logger.head("Welcome to demo application");
-  const app = new Application(new BitWarpClient({
-    cryptoProvider: false
-  }));
+  const app = new Application(new BitWarpClient());
 
   // Add application events
   app.updateStatusBar();

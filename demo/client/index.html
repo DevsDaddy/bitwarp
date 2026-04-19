@@ -12,6 +12,7 @@
   <!-- Base Meta -->
 
   <!-- Styles -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <link rel="stylesheet" href="./assets/app.css" />
   <!-- Styles -->
 </head>
@@ -32,15 +33,31 @@
         <span data-label="connection"></span>
         <span data-label="ping"></span>
       </div>
-
+      <div class="connection">
+        <div class="inner_icon hidden" data-component="secured_icon" id="secured_connection">
+          <span class="material-symbols-outlined font-green active">shield_locked</span>
+        </div>
+        <div class="inner_icon hidden" data-component="unsecured_icon" id="unsecured_connection">
+          <span class="material-symbols-outlined font-red active">gpp_bad</span>
+        </div>
+        <div class="inner_icon hidden" data-component="compressed_icon" id="compressed_connection">
+          <span class="material-symbols-outlined font-green active">compress</span>
+        </div>
+        <div class="inner_icon hidden" data-component="uncompressed_icon" id="uncompressed_connection">
+          <span class="material-symbols-outlined font-red active">raw_on</span>
+        </div>
+        <div class="url" data-label="url" id="server_url"></div>
+      </div>
     </div>
-    <div class="app_content" data-layout="app_content">
+    <div class="app_content hidden" data-layout="app_content">
       <b>blabla bla</b>
     </div>
   </div>
   <!-- Application container -->
 
   <!-- Application scripts -->
+  <script src="https://unpkg.com/@popperjs/core@2"></script>
+  <script src="https://unpkg.com/tippy.js@6"></script>
   <script src="./app.ts" type="module"></script>
   <!-- Application scripts -->
 </body>

@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1080
+ * @build                 1085
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -334,8 +334,7 @@ export class BitWarpClient {
     let self = this;
     if(self.options.compression){
       data = self.options.compression.compress(data);
-    }
-
+    }else if(data.buffer instanceof SharedArrayBuffer) data = new Uint8Array(data);
     return data;
   }
   // #endregion

@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1049
+ * @build                 1058
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               19.04.2026
@@ -59,7 +59,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
   // Override transport getters
   public override get options(): WebSocketClientTransportOptions { return super.options as WebSocketClientTransportOptions; }
   public override get connector () : WebSocket { return super.connector as WebSocket; }
-  public get url() : string { let c = super.connector as WebSocket; return c.url; }
+  public get url() : string | undefined { let c = super.connector as WebSocket; return c?.url ?? undefined; }
 
   /**
    * Connect
@@ -265,7 +265,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
       return Promise.resolve();
     }catch(error : any) {
       if(self.options.resend.enabled){
-        Logger.info(`Failed to send packet ${rawPacket.packetId}. Trying to resend.`)
+        Logger.info(`Failed to send packet ${rawPacket.packetId}. Trying to resend.`, error)
         self._resendQueue.enqueue(rawPacket);
         return Promise.resolve();
       }else{
