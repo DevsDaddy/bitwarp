@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1048
+ * @build                 1049
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import {
@@ -59,6 +59,7 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
   // Override transport getters
   public override get options(): WebSocketClientTransportOptions { return super.options as WebSocketClientTransportOptions; }
   public override get connector () : WebSocket { return super.connector as WebSocket; }
+  public get url() : string { let c = super.connector as WebSocket; return c.url; }
 
   /**
    * Connect

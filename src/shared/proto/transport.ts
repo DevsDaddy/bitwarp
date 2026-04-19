@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1046
+ * @build                 1047
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               19.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
@@ -219,6 +219,9 @@ export interface IServerTransport extends ITransport{
  * Client Transport
  */
 export interface IClientTransport extends ITransport{
+  // Transport URL
+  get url() : string;
+
   // Raw data events
   onDataReceived : BaseEvent<Uint8Array>;
   onBeforePacketSend : BaseEvent<RawPacket>;
