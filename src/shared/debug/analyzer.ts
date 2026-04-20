@@ -43,6 +43,8 @@ export const GeneralPacketNames = {
   STREAM_CONTROL: "stream_control",
   RAW_BINARY: "raw_binary",
   ERROR: "error",
+  PING: "ping",
+  UPDATE_PEER: "update_peer"
 }
 
 /**
