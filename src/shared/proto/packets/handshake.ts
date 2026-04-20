@@ -10,7 +10,7 @@
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
-import { PacketType, HeaderEncoder, IPacketData, BasePacket } from '../packet';
+import { IPacketData, BasePacket } from '../packet';
 import { PROTOCOL_VERSION } from '../../constants';
 
 /**
