@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1056
+ * @build                 1061
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import { BaseEvent } from '../types/event';
@@ -189,7 +189,7 @@ export interface ITransport {
   updateConnector(connector : any) : any | TransportErrorHandler;
 
   // Connection methods
-  connect() : Promise<any|TransportErrorHandler>;
+  connect(query ? : any) : Promise<any|TransportErrorHandler>;
   disconnect(closeCode : TransportCloseCode) : Promise<TransportCloseCode|TransportErrorHandler>;
   reconnect() : Promise<any|TransportErrorHandler>;
   dispose() : Promise<void>;
@@ -305,7 +305,7 @@ export abstract class Transport implements ITransport {
   }
 
   // Connection methods
-  public abstract connect(): Promise<any | TransportErrorHandler>;
+  public abstract connect(query ? : any): Promise<any | TransportErrorHandler>;
   public abstract disconnect(closeCode : TransportCloseCode): Promise<TransportCloseCode | TransportErrorHandler>;
   public abstract reconnect(): Promise<any|TransportErrorHandler>;
   public abstract dispose() : Promise<void>;

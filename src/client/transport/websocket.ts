@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1059
+ * @build                 1064
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import {
@@ -21,7 +21,7 @@ import {
   Transport,
   TransportCloseCode,
   TransportError,
-  TransportErrorHandler
+  TransportErrorHandler, URIConverter
 } from '../../shared';
 
 /**
@@ -46,6 +46,9 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
   private _resendTimer ? : NodeJS.Timeout;
   private _resendAttempts : number = 0;
 
+  // Current Query Params
+  private _queryParams = "";
+
   /**
    * Create WebSocket based client transport
    * @param options {WebSocketClientTransportOptions} Options
@@ -63,9 +66,10 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
 
   /**
    * Connect
+   * @param query {any} Query object
    * @returns {Promise<any|TransportErrorHandler>} Returns connector instance or Transport Error Handler
    */
-  public override async connect(): Promise<any | TransportErrorHandler> {
+  public override async connect(query ? : any): Promise<any | TransportErrorHandler> {
     let self = this;
     return new Promise(async (resolve) => {
       try {
@@ -78,7 +82,8 @@ export class WebSocketClientTransport extends Transport implements ITransport, I
         self.onBeforeConnected.invoke();
         self.stopResend();
         let currentOptions = self.options;
-        let url : string = `${currentOptions.protocol}${currentOptions.host}:${currentOptions.port}${currentOptions.path}`;
+        this._queryParams = (query) ? (typeof query === "string") ? query : URIConverter.toURIParams(query) : this._queryParams;
+        let url : string = `${currentOptions.protocol}${currentOptions.host}:${currentOptions.port}${currentOptions.path}?${this._queryParams}`;
         let connector = new WebSocket(url);
 
         // Subscribe to connector events

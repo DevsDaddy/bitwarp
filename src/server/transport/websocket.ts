@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1032
+ * @build                 1037
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import {
@@ -24,12 +24,13 @@ import {
   Transport,
   TransportCloseCode,
   TransportError,
-  TransportErrorHandler,
+  TransportErrorHandler, URIConverter,
   UUID
 } from '../../shared';
 import { Router } from "../router";
 import { WebSocket, WebSocketServer } from 'ws';
 import 'dotenv/config';
+import { IncomingMessage } from 'node:http';
 
 /**
  * WebSocket based server transport options
@@ -130,15 +131,14 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
         });
 
         // Subscribe to connector events
-        connector.addListener("connection", (client : WebSocket) => {
+        connector.addListener("connection", async (client : WebSocket, req : IncomingMessage) => {
           if(self.options.rateLimit.enabled && self.options.rateLimit.maxConnections > 0){
             if(self._connections.size > self.options.rateLimit.maxConnections){
               client.close(1013, "Server overload")
               return;
             }
           }
-
-          self.handleConnection(client);
+          await self.handleConnection(client, URIConverter.toMap(req?.url ?? ""));
         });
         connector.addListener("close", () => {
           self.stopHeartbeat();
@@ -479,9 +479,10 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
   /**
    * Handle raw client connection
    * @param client {WebSocket} client
+   * @param query {Map<string,string>} Query map (key, value)
    * @private
    */
-  private handleConnection(client : WebSocket) {
+  private async handleConnection(client : WebSocket, query ? : Map<string,string>) {
     let self = this;
 
     // Create client connection data
@@ -489,11 +490,12 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     let connection : ClientConnection = {
       id : connectionId,
       isAlive : true,
-      connector: client
+      connector: client,
+      query: query ?? new Map<string, string>()
     };
 
     // On before client connected
-    self.onBeforeClientConnected.invoke(connection);
+    await self.onBeforeClientConnected.invokeAsync(connection);
 
     // Add connection to set
     self._connections.set(connectionId, connection);
@@ -509,8 +511,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     client.on('message', async (data) => {
       await self.handleMessage(connection, data);
     });
-    client.on('close', () => {
-      self.handleDisconnect(connectionId);
+    client.on('close', async () => {
+      await self.handleDisconnect(connectionId);
     })
     client.on('error', (err) => {
       Logger.error(`Connection #${connection.id} error: ${err}`);
@@ -518,8 +520,8 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
     });
 
     // Send Event
-    self.onClientConnected.invoke(connection);
-    Logger.info(`New connection: ${connectionId}`);
+    await self.onClientConnected.invokeAsync(connection);
+    Logger.info(`New connection: ${connectionId}`, query);
   }
 
   /**
@@ -527,7 +529,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
    * @param connectionId {string} connection ID
    * @private
    */
-  private handleDisconnect(connectionId : string) : void {
+  private async handleDisconnect(connectionId : string) : Promise<void> {
     let self = this;
 
     // Find connection
@@ -541,7 +543,7 @@ export class WebSocketServerTransport extends Transport implements ITransport, I
 
     // Remove connection
     self._connections.delete(connectionId);
-    self.onClientDisconnected.invoke({ connectionId: connectionId, code: ClientDisconnectCode.NormalDisconnect});
+    await self.onClientDisconnected.invokeAsync({ connectionId: connectionId, code: ClientDisconnectCode.NormalDisconnect});
     Logger.info(`Connection ${connectionId} disconnected normally.`);
   }
 

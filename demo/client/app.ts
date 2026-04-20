@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1033
+ * @build                 1038
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import { Logger, BaseEvent, ErrorHandler, ErrorType } from '../../dist/';
@@ -174,9 +174,10 @@ class Application {
   /**
    * Get formatted URL
    * @param url {string} url
+   * @param removeParams {boolean} remove params
    * @returns {string} formatted url
    */
-  public getFormattedUrl(url : string) : string{
+  public getFormattedUrl(url : string, removeParams : boolean = true) : string{
     let green = "<span class='font-green font-bold'>";
     let orange = "<span class='font-orange font-bold'>";
     let end = "</span>"
@@ -184,6 +185,9 @@ class Application {
     if(url.startsWith("ws://")) url = url.replace("ws://", `${orange}ws://${end}`);
     if(url.startsWith("https://")) url = url.replace("https://", `${green}https://${end}`);
     if(url.startsWith("wss://")) url = url.replace("wss://", `${green}wss://${end}`);
+    if(removeParams) {
+      url = url.split("?")?.[0] ?? url;
+    }
     return url;
   }
 
@@ -256,7 +260,12 @@ class Application {
 (async () => {
   // Create application instance
   Logger.head("Welcome to demo application");
-  const app = new Application(new BitWarpClient());
+  const app = new Application(new BitWarpClient({
+    query: {
+      test: 123,
+      me: "Test"
+    }
+  }));
 
   // Add application events
   app.updateStatusBar();

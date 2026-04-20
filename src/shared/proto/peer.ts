@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1024
+ * @build                 1029
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               20.04.2026
  */
 import { CryptoProvider } from './crypto';
 import { HandshakeStep } from './packets/handshake';
@@ -19,6 +19,7 @@ export interface ClientConnection {
   connector : any;
   isAlive : true;
   pingTimeout ? : NodeJS.Timeout;
+  query : Map<string, string>;
 }
 
 /**

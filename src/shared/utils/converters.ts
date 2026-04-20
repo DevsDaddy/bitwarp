@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1001
+ * @build                 1006
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               12.04.2026
+ * @updated               20.04.2026
  */
 /**
  * Binary converter
@@ -220,5 +220,88 @@ export class BinaryConverter {
       this.textDecoder = new TextDecoder('utf-8');
     }
     return this.textDecoder;
+  }
+}
+
+/**
+ * URI Converter
+ */
+export class URIConverter {
+  /**
+   * Convert object to URI Params
+   * @param obj {any} Object
+   * @returns {string} URI Params
+   */
+  public static toURIParams(obj : any) : string {
+    // Check object
+    if(!obj || typeof obj !== 'object') return "";
+
+    // Bring to key/val
+    let kval : string[] = [];
+    for (let [key, value] of Object.entries(obj)) {
+      let val = (value) ? value.toString() : "";
+      kval.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`);
+    }
+
+    return kval.join("&");
+  }
+
+  /**
+   * Convert URI Params to object of type
+   * @param urlParams {string} URL Params or URL
+   * @returns {any} Typed object
+   * @constructor
+   */
+  public static toObject<T>(urlParams : string) : T {
+    // Check and split params
+    if(urlParams.startsWith("/")) urlParams = urlParams.substring(1);
+    if(urlParams.startsWith("http:") || urlParams.startsWith("https:") || urlParams.startsWith("ws:") ||
+      urlParams.startsWith("wss:") || urlParams.startsWith("?")) {
+      urlParams = urlParams.split("?")?.[1] ?? "";
+    }
+    if(urlParams.length < 1) return {} as T;
+
+    // Split to array of params
+    let urlArr = urlParams.split("&");
+    if(urlArr.length < 1) return {} as T;
+
+    let finalObject : any = {};
+    for(let i = 0; i < urlArr.length; i++) {
+      let kval = urlArr[i].split("=");
+      if(kval.length > 0){
+        finalObject[kval[0]] = kval?.[1]?.toString() ?? undefined;
+      }
+    }
+
+    return finalObject as T;
+  }
+
+  /**
+   * Convert URI Params to map
+   * @param urlParams {string} URI Params or URL
+   * @returns {Map<string,string>} Params map
+   */
+  public static toMap(urlParams : string) : Map<string, string> {
+    // Check and split params
+    if(urlParams.startsWith("/")) urlParams = urlParams.substring(1);
+    if(urlParams.startsWith("http:") || urlParams.startsWith("https:") || urlParams.startsWith("ws:") ||
+      urlParams.startsWith("wss:") || urlParams.startsWith("?")) {
+      urlParams = urlParams.split("?")?.[1] ?? "";
+    }
+    if(urlParams.length < 1) return new Map<string, string>();
+
+    // Split to array of params
+    let urlArr = urlParams.split("&");
+    if(urlArr.length < 1) return new Map<string, string>();
+
+    let finalMap : Map<string, string> = new Map<string, string>();
+    for(let i = 0; i < urlArr.length; i++) {
+      let kval = urlArr[i].split("=");
+      if(kval.length > 0){
+        finalMap.set(kval[0], kval?.[1]?.toString() ?? "");
+      }
+    }
+
+    return finalMap;
   }
 }

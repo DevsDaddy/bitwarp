@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1087
+ * @build                 1092
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import {
@@ -48,6 +48,7 @@ export interface BitWarpClientOptions extends BitWarpOptions {
   compression ? : ICompressionProvider | false;
   cryptoProvider ? : CryptoProvider | false;
   cryptoProviderOptions ? : CryptoProviderOptions;
+  query ? : any;
 }
 
 /**
@@ -190,7 +191,7 @@ export class BitWarpClient {
     self.transport.onReconnecting.addListener((isReconnecting)=> {
       self.onReconnecting.invoke(isReconnecting);
     });
-    await self._transport.connect();
+    await self._transport.connect(self.options?.query ?? {});
   }
 
   /**
@@ -554,7 +555,8 @@ export class BitWarpClient {
       logLevel: LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),
-      cryptoProviderOptions: {}
+      cryptoProviderOptions: {},
+      query: {}
     }
   }
   // #endregion

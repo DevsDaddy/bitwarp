@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1079
+ * @build                 1084
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import {
@@ -89,6 +89,10 @@ export class BitWarpServer {
   public readonly onStopped : BaseEvent = new BaseEvent();
   public readonly onError : BaseEvent<ErrorHandler> = new BaseEvent<ErrorHandler>();
 
+  // Client connections
+  public readonly onPreconnect : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
+  public readonly onDisconnect : BaseEvent<string> = new BaseEvent<string>();
+
   // Handshake
   public readonly onHandshakeStarted : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
   public readonly onHandshakeComplete : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
@@ -168,11 +172,11 @@ export class BitWarpServer {
     // Start transport
     self._isStarted = false;
     self.unsubscribeAllTransport();
-    self.transport.onClientConnected.addListener(connection => {
-      self.handleRawConnection(connection);
+    self.transport.onClientConnected.addListener(async connection => {
+      await self.handleRawConnection(connection);
     });
-    self.transport.onClientDisconnected.addListener(disconnectState => {
-      self.handleRawDisconnect(disconnectState);
+    self.transport.onClientDisconnected.addListener(async disconnectState => {
+      await self.handleRawDisconnect(disconnectState);
     });
     self.transport.onClientDataReceived.addListener(async clientData => {
       await self.handleRawMessage(clientData);
@@ -248,8 +252,10 @@ export class BitWarpServer {
    * @param connection {ClientConnection} Connection from transport
    * @private
    */
-  private handleRawConnection(connection : ClientConnection) {
-    // TODO: Handshake
+  private async handleRawConnection(connection : ClientConnection) {
+    let self = this;
+    await Router.invoke("preconnect", self, connection);
+    await self.onPreconnect.invokeAsync(connection);
   }
 
   /**
@@ -257,9 +263,11 @@ export class BitWarpServer {
    * @param disconnect {ClientDisconnect} Disconnect state from transport
    * @private
    */
-  private handleRawDisconnect(disconnect : ClientDisconnect) {
+  private async handleRawDisconnect(disconnect : ClientDisconnect) {
     let self = this;
+    await Router.invoke("disconnect", self, disconnect.connectionId);
     self.removePeerByConnectionId(disconnect.connectionId);
+    await self.onDisconnect.invokeAsync(disconnect.connectionId);
   }
 
   /**

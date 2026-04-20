@@ -3,13 +3,21 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1013
+ * @build                 1014
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               20.04.2026
  */
 
-import { ClientData, ErrorHandler, HandshakePacketData, ITransport, Logger, TransportErrorHandler } from '../shared';
+import {
+  ClientConnection,
+  ClientData,
+  ErrorHandler,
+  HandshakePacketData,
+  ITransport,
+  Logger,
+  TransportErrorHandler
+} from '../shared';
 import { BitWarpServer } from './index';
 
 /**
@@ -29,6 +37,8 @@ interface EventMap {
   transportDataSent : [transport : ITransport, clientData : ClientData];
 
   // Server Routes
+  preconnect: [server : BitWarpServer, clientData : ClientConnection];
+  disconnect: [server : BitWarpServer, connectionId : string]
   error : [server : BitWarpServer, error : ErrorHandler];
 
   // Handshake
