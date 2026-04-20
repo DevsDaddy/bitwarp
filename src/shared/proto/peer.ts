@@ -55,10 +55,16 @@ export interface ClientData {
  *  BitWarp Peer
  */
 export interface Peer {
+  // Basic Data
   id : string;
   connection : ClientConnection;
+  ping ? : number;
+
+  // Encryption
   encryptor ? : CryptoProvider;
   clientKey : Uint8Array;
+
+  // Handshake
   handshakeComplete : boolean;
   handshakeStep : HandshakeStep;
 }

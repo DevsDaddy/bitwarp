@@ -210,6 +210,17 @@ export class BitWarpServer {
   }
 
   /**
+   * Send error to client
+   * @param connection {ClientConnection} Client connection
+   * @param error {ErrorHandler} Error
+   */
+  public async sendError(connection: ClientConnection, error : ErrorHandler) : Promise<void> {
+    let self = this;
+    try { await self.transport.send(self.preparePacket(error.toBuffer()), connection) }catch{}
+    return Promise.reject(error);
+  }
+
+  /**
    * Stop BitWarp Server
    */
   public async stop(): Promise<void> {
@@ -369,8 +380,7 @@ export class BitWarpServer {
           Logger.error(`Wrong packet type received from connection ${clientData.connection.id}: ${headerData.type}`);
           await Router.invoke("error", self, error);
           self.onError.invoke(error);
-          await self.transport.send(self.preparePacket(error.toBuffer()), clientData.connection);
-          return;
+          await self.sendError(clientData.connection, error);
         }
       }
     }catch (error : any){
@@ -378,7 +388,7 @@ export class BitWarpServer {
       Logger.error(`Failed to process raw message for ${clientData.connection.id}: ${error?.message ?? "Unknown error"}`);
       await Router.invoke("error", self, errorData);
       self.onError.invoke(errorData);
-      try { await self.transport.send(self.preparePacket(errorData.toBuffer()), clientData.connection) }catch{}
+      await self.sendError(clientData.connection, errorData);
       return Promise.reject(error);
     }
   }
@@ -525,9 +535,18 @@ export class BitWarpServer {
    */
   private async processPingPacket(clientData : ClientData) : Promise<void> {
     let self = this;
-    let encryptor = self.getPeerByConnectionId(clientData.connection.id)?.encryptor;
+    // Decrypt packet
+    let peerData = self.getPeerByConnectionId(clientData.connection.id);
+    if(!peerData) throw new Error(`No peer data found for ${clientData.connection.id}.`);
+    let encryptor = peerData?.encryptor;
     if(encryptor) PingPacket.setCryptoProvider(encryptor);
+
+    // Update ping for peer
     let pingPacket = PingPacket.decode(clientData.data);
+    peerData.ping = Date.now() - pingPacket.payload.timestamp;
+    self.updatePeer(peerData.id, peerData, false);
+
+    // Send ping packet
     let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
     await self.transport.send(self.preparePacket(encoded), clientData.connection)
     return Promise.resolve();
@@ -597,6 +616,38 @@ export class BitWarpServer {
   }
 
   /**
+   * Get peer by connection ID
+   * @param connectionId {string} Connection id
+   * @private
+   */
+  private getPeerByConnectionId(connectionId : string) : Peer | undefined{
+    let self = this;
+    let foundPeer : Peer | undefined = undefined;
+    self._peers.forEach((peer : Peer) => {
+      if(peer.connection.id === connectionId){
+        foundPeer = peer;
+        return;
+      }
+    });
+
+    return foundPeer;
+  }
+
+  /**
+   * Update peer
+   * @param peerId {string} Peer id
+   * @param peerData {Peer} Peer data
+   * @param notify {boolean} Notify changes?
+   * @private
+   */
+  private updatePeer(peerId : string, peerData : Peer, notify : boolean = true) {
+    let self = this;
+    self._peers.set(peerId, peerData);
+
+    // TODO: Notify
+  }
+
+  /**
    * Remove peer by ID
    * @param peerId {string} Peer ID
    * @private
@@ -626,24 +677,6 @@ export class BitWarpServer {
         return;
       }
     });
-  }
-
-  /**
-   * Get peer by connection ID
-   * @param connectionId {string} Connection id
-   * @private
-   */
-  private getPeerByConnectionId(connectionId : string) : Peer | undefined{
-    let self = this;
-    let foundPeer : Peer | undefined = undefined;
-    self._peers.forEach((peer : Peer) => {
-      if(peer.connection.id === connectionId){
-        foundPeer = peer;
-        return;
-      }
-    });
-
-    return foundPeer;
   }
   // #endregion
 
