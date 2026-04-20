@@ -27,6 +27,12 @@ class Application {
   private readonly _client : BitWarpClient;
   private _isToastSetup : boolean = false;
 
+  // Routes
+  private readonly routes : object = {
+    welcome : this.onWelcome,
+    create_room : this.onCreateRoomRequested,
+  };
+
   /**
    * Create demo application
    * @param client {BitWarpClient} BitWarp Client instance
@@ -49,6 +55,7 @@ class Application {
     }
 
     // Add tooltips
+    self.toggleComponent("slow_network_icon", false);
     self.setupTooltips();
 
     // Add Events
@@ -85,6 +92,7 @@ class Application {
     });
     self.client.onPingChanged.addListener((ping)=> {
       self.setLabel("ping", `(Ping: ${ping} ms)`);
+      self.toggleComponent("slow_network_icon", ping >= 50);
     });
     self.client.onReconnecting.addListener((isReconnecting)=> {
       if(isReconnecting) self.setLabel("ping", "");
@@ -94,6 +102,74 @@ class Application {
       self.toggleLayout("app_content", !isReconnecting);
     });
     await self.client.connect();
+  }
+  // #endregion
+
+  // #region Controllers
+  /**
+   * On welcome page navigated
+   * @param app {Application} Application instance
+   */
+  public onWelcome(app : Application) : void {
+    Logger.head("Switched to welcome view");
+
+    // Get form elements
+    let roomInput = document.getElementById("room_code") as HTMLInputElement;
+    let joinRoomBtn = document.getElementById("join_room") as HTMLButtonElement;
+    let createRoomBtn = document.getElementById("create_room") as HTMLButtonElement;
+    if(!roomInput || !createRoomBtn || !joinRoomBtn) {
+      app.onError.invoke(new ErrorHandler(`Failed to initialize welcome view. Not all form presented`));
+    }
+
+    // Input function
+    function onRoomInput(event: Event){
+      const target = event.target as HTMLInputElement;
+      joinRoomBtn.disabled = (target.value.length < 1);
+    }
+
+    // Join room
+    function onJoinPressed(){
+      let roomId = roomInput.value;
+      roomInput.value = "";
+      joinRoomBtn.disabled = true;
+      createRoomBtn.disabled = true;
+      app.joinRoom(roomId, ()=>{
+        Logger.success(`Room joined: ${roomId}`);
+      }, error => {
+        app.showToast("error", "Error", `Failed to join room: ${error?.message ?? "Unknown error"}`);
+      });
+    }
+
+    // Create room
+    function onCreatePressed(){
+      app.showView("create_room");
+    }
+
+    // Setup form
+    roomInput.value = '';
+    roomInput?.focus();
+    joinRoomBtn.disabled = true;
+    createRoomBtn.disabled = false;
+    roomInput.removeEventListener("input", onRoomInput);
+    roomInput.addEventListener("input", onRoomInput);
+    joinRoomBtn.removeEventListener("click", onJoinPressed);
+    joinRoomBtn.addEventListener("click", onJoinPressed);
+    createRoomBtn.removeEventListener("click", onCreatePressed);
+    createRoomBtn.addEventListener("click", onCreatePressed);
+  }
+
+  /**
+   * On room creation requested
+   * @param app {Application} Application instance
+   */
+  public onCreateRoomRequested(app : Application){
+
+  }
+  // #endregion
+
+  // #region Rooms Logic
+  private joinRoom(roomId : string, onComplete ? : () => void, onError ? : (handler : ErrorHandler) => void) : void {
+
   }
   // #endregion
 
@@ -168,6 +244,22 @@ class Application {
   public toggleComponent(component: string, isEnabled: boolean) {
     document.querySelectorAll(`[data-component="${component}"]`).forEach((item) => {
       item.classList.toggle('hidden', !isEnabled);
+    });
+  }
+
+  /**
+   * Show view
+   * @param viewId {string} View ID
+   */
+  public showView(viewId : string){
+    let self = this;
+    document.querySelectorAll(`[data-view]`).forEach((view) => {
+      let vid = view.getAttribute('data-view');
+      view.classList.toggle("hidden", (!(vid && vid === viewId)));
+      if (vid && vid === viewId && self.routes.hasOwnProperty(viewId)) {
+        // @ts-ignore
+        self.routes[viewId](self);
+      }
     });
   }
 
@@ -250,6 +342,8 @@ class Application {
     tippy('#uncompressed_connection', { content: 'Uncompressed connection', });
     // @ts-ignore
     tippy('#server_url', { content: 'Connection url', });
+    // @ts-ignore
+    tippy('#slow_network', { content: 'Slow network connection', });
   }
   // #endregion
 }
@@ -277,6 +371,7 @@ class Application {
     app.toggleLoader(false);
     app.updateStatusBar();
     app.toggleLayout("app_content", true);
+    app.showView("welcome");
   })
   app.onInitializationError.addListener((error)=> {
     app.setLabel("loading_state", "Initialization Error");

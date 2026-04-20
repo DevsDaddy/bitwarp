@@ -30,11 +30,48 @@ html, body {
     font-family: "Inter", sans-serif;
     font-optical-sizing: auto;
     font-style: normal;
+    font-weight: 200;
 }
 
 /*
     2. TYPOGRAPHY
  */
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-weight: 500;
+}
+
+h1 {
+    font-size: 3rem;
+}
+
+h2 {
+    font-size: 2rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+}
+
+h4 {
+    font-size: 1rem;
+}
+
+h5 {
+    font-size: 0.8rem;
+}
+
+h6 {
+    font-size: 0.7rem;
+}
+
+/* Paragraph etc. */
+p {
+    font-weight: 200;
+    margin: 0;
+}
+
 /* Material icons */
 .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 100, 'GRAD' 0, 'opsz' 24;
@@ -58,6 +95,15 @@ html, body {
 }
 .font-red {
     color: #e10000;
+}
+
+/* Welcome head */
+.welcome-head{
+    background: #00fffc;
+    background: linear-gradient(to right, #00fffc 0%, #f6ff00 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 /*
@@ -115,6 +161,7 @@ html, body {
     @media (max-width: 768px) {
         flex-direction: column;
         gap: 10px;
+        padding: 10px;
     }
 }
 .app_content{
@@ -125,6 +172,21 @@ html, body {
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
+}
+
+/* App View */
+.app_view {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    padding: 20px;
+
+    @media (max-width: 768px) {
+        padding: 10px;
+    }
 }
 
 /* Toast container */
@@ -207,6 +269,25 @@ html, body {
     font-size: 22px;
 }
 
+/* Welcome form */
+.welcome_form{
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    background: #32424f;
+    padding: 40px;
+    border-radius: 20px;
+    border: 1px solid #475d6e;
+
+    @media (max-width: 768px) {
+        padding: 20px;
+        gap: 10px;
+    }
+}
+
 /*
     5. UTILS
  */
@@ -263,6 +344,53 @@ html, body {
 /* Hidden */
 .hidden{
     display: none !important;
+}
+
+/* Flex */
+.flex {
+    display: flex;
+}
+
+.flex-column {
+    flex-direction: column;
+}
+
+.flex-row {
+    flex-direction: row;
+}
+
+.flex-nowrap {
+    flex-wrap: nowrap;
+}
+
+/* Alignment */
+.centred{
+    align-content: center;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Gap */
+.gap-5{
+    gap: 5px;
+}
+.gap-10{
+    gap: 10px;
+}
+.gap-15{
+    gap: 15px;
+}
+.gap-20{
+    gap: 20px;
+}
+.gap-30{
+    gap: 30px;
+}
+.gap-40{
+    gap: 40px;
+}
+.gap-50{
+    gap: 50px;
 }
 
 /*
