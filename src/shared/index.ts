@@ -43,6 +43,7 @@ export * from "./proto/packets/object";
 export * from "./proto/packets/stream";
 export * from "./proto/packets/error";
 export * from "./proto/packets/ping";
+export * from "./proto/packets/peer";
 
 /* Export Crypto Providers */
 export * from "./crypto";

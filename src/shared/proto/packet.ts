@@ -36,7 +36,8 @@ export enum PacketType {
   RAW_BINARY = 0x9,
   ERROR = 0xA,
   PING = 0xB,
-  // Reserved for future extensions 0xC-0xF
+  UPDATE_PEER = 0xC,
+  // Reserved for future extensions 0xD-0xF
 }
 
 /**

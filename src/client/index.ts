@@ -316,6 +316,10 @@ export class BitWarpClient {
           await self.processPingPacket(message);
           break;
         }
+        case PacketType.UPDATE_PEER: {
+          await self.processPeerUpdatePacket(message);
+          break;
+        }
         default: {
           Logger.error(`Wrong packet type received: ${headerData.type}`);
           self.onError.invoke(new ErrorHandler(`Failed to deserialize packet from server. Unknown packet type`, null, ErrorType.ServerException));
@@ -480,6 +484,15 @@ export class BitWarpClient {
     self._ping = ping;
     self.onPingChanged.invoke(ping);
     Logger.info(`Connection ping: ${ping}ms`);
+  }
+
+  /**
+   * Process peer info update
+   * @param message {Uint8Array} Raw message
+   * @private
+   */
+  private async processPeerUpdatePacket(message : Uint8Array) : Promise<void>{
+
   }
 
   /**
