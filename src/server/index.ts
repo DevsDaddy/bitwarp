@@ -53,12 +53,23 @@ export * from "./peer";
 export * from "./router";
 
 /**
+ * Client permissions
+ */
+export interface ClientPermissions {
+  allowRoomCreate : boolean;
+  allowRoomUpdate : boolean;
+  allowRoomDelete : boolean;
+  allowRoomList : boolean;
+}
+
+/**
  * BitWarp Server Options
  */
 export interface BitWarpServerOptions extends BitWarpOptions{
   compression ? : ICompressionProvider | false;
   cryptoProvider ? : CryptoProvider | false;
   cryptoProviderOptions ? : CryptoProviderOptions;
+  clientPermissions ? : ClientPermissions;
 }
 
 /**
@@ -686,14 +697,25 @@ export class BitWarpServer {
    */
   public static get defaultOptions() : BitWarpServerOptions {
     return {
+      // Basic options
       name : process?.env?.APPLICATION_NAME ?? "BitWarp Server",
       version : process?.env?.APPLICATION_VERSION ?? "1.0.0",
       debug : ParseUtils.bool(process?.env?.DEBUG_MODE ?? "true"),
       analyzePackets : ParseUtils.bool(process?.env?.ANALYZE_PACKETS ?? "false"),
       logLevel : LogLevel.Info | LogLevel.Log | LogLevel.Success | LogLevel.Warning | LogLevel.Error,
+
+      // Compression and encryption
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),
-      cryptoProviderOptions: {}
+      cryptoProviderOptions: {},
+
+      // Client permission
+      clientPermissions : {
+        allowRoomCreate: true,
+        allowRoomDelete: true,
+        allowRoomUpdate: true,
+        allowRoomList: true
+      }
     }
   }
   // #endregion

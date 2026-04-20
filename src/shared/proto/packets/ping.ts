@@ -11,7 +11,6 @@
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
 import { BasePacket, IPacketData, PacketType } from '../packet';
-import { CryptoProvider } from '../crypto';
 
 /* Ping Payload */
 export type PingPayload = {
