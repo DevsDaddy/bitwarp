@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1039
+ * @build                 1043
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               20.04.2026
+ * @updated               21.04.2026
  */
 /* Import required modules */
 import { Logger, BaseEvent, ErrorHandler, ErrorType } from '../../dist/';
@@ -26,11 +26,13 @@ class Application {
   // Client Instance
   private readonly _client : BitWarpClient;
   private _isToastSetup : boolean = false;
+  protected isPeerSetup : boolean = false;
 
   // Routes
   private readonly routes : object = {
     welcome : this.onWelcome,
     create_room : this.onCreateRoomRequested,
+    peer_info: this.onUpdatePeerRequested
   };
 
   /**
@@ -61,6 +63,7 @@ class Application {
     // Add Events
     self.client.onHandshakeStarted.addListener(()=>{
       self.setLabel("loading_state", "Encryption establish...");
+      self.isPeerSetup = false;
     });
     self.client.onHandshakeComplete.addListener(()=>{
       self.setLabel("loading_state", "Initialized.");
@@ -111,6 +114,13 @@ class Application {
    * @param app {Application} Application instance
    */
   public onWelcome(app : Application) : void {
+    // Check peer setup
+    if(!app.isPeerSetup) {
+      app.showView("peer_info");
+      return;
+    }
+
+    // Set header
     Logger.head("Switched to welcome view");
 
     // Get form elements
@@ -133,7 +143,7 @@ class Application {
       roomInput.value = "";
       joinRoomBtn.disabled = true;
       createRoomBtn.disabled = true;
-      app.joinRoom(roomId, ()=>{
+      app.joinRoom(app, roomId, ()=>{
         Logger.success(`Room joined: ${roomId}`);
       }, error => {
         app.showToast("error", "Error", `Failed to join room: ${error?.message ?? "Unknown error"}`);
@@ -159,6 +169,56 @@ class Application {
   }
 
   /**
+   * On update peer info requested
+   * @param app {Application} Application instance
+   */
+  public onUpdatePeerRequested(app : Application) : void {
+    function onUpdated() { app.showView("welcome"); }
+    function onUpdateError(error : ErrorHandler) {
+      localStorage.removeItem("username");
+      app.showToast("error", "Error", `Failed to join room: ${error?.message ?? "Unknown error"}`);
+      app.onUpdatePeerRequested(app);
+    }
+
+    // If has in localstorage
+    let username = localStorage.getItem("username");
+    if(username && username.length > 0){
+      app.changePeerName(app, username, onUpdated, onUpdateError);
+      return;
+    }
+
+    // Set header
+    Logger.head("Switched to peer setup view");
+
+    // Get elements
+    let nameInput = document.getElementById("peer_name") as HTMLInputElement;
+    let updateBtn = document.getElementById("change_info") as HTMLButtonElement;
+
+    // Input function
+    function onNameInput(event: Event){
+      const target = event.target as HTMLInputElement;
+      updateBtn.disabled = (target.value.length < 1);
+    }
+
+    // Save pressed
+    function onSavePressed(){
+      let roomId = nameInput.value;
+      nameInput.value = "";
+      updateBtn.disabled = true;
+      app.changePeerName(app, roomId, onUpdated, onUpdateError);
+    }
+
+    // Setup form
+    nameInput.value = '';
+    nameInput?.focus();
+    updateBtn.disabled = true;
+    nameInput.removeEventListener("input", onNameInput);
+    nameInput.addEventListener("input", onNameInput);
+    updateBtn.removeEventListener("click", onSavePressed);
+    updateBtn.addEventListener("click", onSavePressed);
+  }
+
+  /**
    * On room creation requested
    * @param app {Application} Application instance
    */
@@ -167,8 +227,33 @@ class Application {
   }
   // #endregion
 
+  // #region Peers Logic
+  private changePeerName(app : Application, peerName : string, onComplete ? : () => void, onError ? : (handler : ErrorHandler) => void) : void {
+    Logger.info(`Trying to set current username to ${peerName}`);
+
+    function onChanged(info : any){
+      if(info?.username && info?.username.length > 0){
+        localStorage.setItem("username", info.username);
+        app.isPeerSetup = true;
+        onComplete && onComplete();
+      }else{
+        onError && onError(new ErrorHandler(`Failed to change peer name. Response doesn't contains a new username`));
+      }
+    }
+
+    // Catch errors and complete
+    app.client.onPeerInfoUpdated.removeListener(onChanged);
+    app.client.onPeerInfoUpdated.addListener(onChanged);
+
+    // Update peer info
+    app.client.updatePeerInfo({
+      username: peerName
+    }).then(() => {}).catch((error : any) => { if(onError) onError(ErrorHandler.parse(error)); });
+  }
+  // #endregion Peers Logic
+
   // #region Rooms Logic
-  private joinRoom(roomId : string, onComplete ? : () => void, onError ? : (handler : ErrorHandler) => void) : void {
+  private joinRoom(app : Application, roomId : string, onComplete ? : () => void, onError ? : (handler : ErrorHandler) => void) : void {
 
   }
   // #endregion
@@ -253,14 +338,18 @@ class Application {
    */
   public showView(viewId : string){
     let self = this;
+
+    // Show / Hide views
     document.querySelectorAll(`[data-view]`).forEach((view) => {
       let vid = view.getAttribute('data-view');
       view.classList.toggle("hidden", (!(vid && vid === viewId)));
-      if (vid && vid === viewId && self.routes.hasOwnProperty(viewId)) {
-        // @ts-ignore
-        self.routes[viewId](self);
-      }
     });
+
+    // Launch Controller
+    if(self.routes.hasOwnProperty(viewId)){
+      // @ts-ignore
+      self.routes[viewId](self);
+    }
   }
 
   /**
@@ -354,17 +443,7 @@ class Application {
 (async () => {
   // Create application instance
   Logger.head("Welcome to demo application");
-  const app = new Application(new BitWarpClient({
-    query: {
-      test: 123,
-      me: "Test"
-    },
-    peerInfo: {
-      first_name: "John",
-      last_name: "Doe",
-      email: "start@ncommx.com"
-    }
-  }));
+  const app = new Application(new BitWarpClient());
 
   // Add application events
   app.updateStatusBar();

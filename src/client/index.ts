@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1094
+ * @build                 1098
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               20.04.2026
+ * @updated               21.04.2026
  */
 /* Import required modules */
 import {
@@ -33,7 +33,7 @@ import {
   TransportErrorHandler,
   UUID,
   QuarkDashProvider, PING_DELAY,
-  PingPacket
+  PingPacket, RoomInfo, PeerUpdatePacket
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 import { FlashBuffer } from 'flash-buffer';
@@ -74,6 +74,9 @@ export class BitWarpClient {
   // Handshake events
   public readonly onHandshakeStarted : BaseEvent = new BaseEvent();
   public readonly onHandshakeComplete : BaseEvent = new BaseEvent();
+
+  // Peer Events
+  public readonly onPeerInfoUpdated : BaseEvent<any> = new BaseEvent<any>();
 
   // Client state
   private _isConnected = false;
@@ -487,12 +490,34 @@ export class BitWarpClient {
   }
 
   /**
+   * Update peer info
+   * @param peerInfo
+   */
+  public async updatePeerInfo(peerInfo : any) : Promise<void> {
+    let self = this;
+
+    // Prepare packet
+    if(self._encryptProvider) PeerUpdatePacket.setCryptoProvider(self._encryptProvider);
+    let updatePacket = PeerUpdatePacket.encode({
+      peerInfo: peerInfo
+    });
+
+    Logger.info(`Update peer info: `, peerInfo);
+    await self.transport.send({ packetId: UUID.v4(), data: self.preparePacket(updatePacket)});
+    return Promise.resolve();
+  }
+
+  /**
    * Process peer info update
    * @param message {Uint8Array} Raw message
    * @private
    */
   private async processPeerUpdatePacket(message : Uint8Array) : Promise<void>{
-
+    let self = this;
+    if(self._encryptProvider) PeerUpdatePacket.setCryptoProvider(self._encryptProvider);
+    let peerData = PeerUpdatePacket.decode(message);
+    self.onPeerInfoUpdated.invoke(peerData.payload.peerInfo);
+    Logger.info(`Peer info updated. New info: `, peerData.payload.peerInfo);
   }
 
   /**
@@ -523,7 +548,13 @@ export class BitWarpClient {
   }
 
 
-  public async createRoom() : Promise<void> {
+  /**
+   * Create room
+   * @param roomInfo {RoomInfo} Room info
+   * @param accessKey {string} Access key
+   * @param needAccept {boolean} Is need accept
+   */
+  public async createRoom(roomInfo : RoomInfo, accessKey : string = "", needAccept : boolean = false) : Promise<void> {
 
   }
 

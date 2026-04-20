@@ -28,6 +28,7 @@
 
   <!-- Application container -->
   <div id="application" class="app_container">
+    <!-- TOP BAR -->
     <div class="app_header">
       <div class="connect">
         <div class="online_icon offline smooth-250"></div>
@@ -53,7 +54,11 @@
         <div class="url" data-label="url" id="server_url"></div>
       </div>
     </div>
+    <!-- TOP BAR -->
+
+    <!-- APP CONTENT -->
     <div class="app_content hidden" data-layout="app_content">
+      <!-- WELCOME VIEW -->
       <div class="app_view centred hidden gap-10" data-view="welcome">
         <div class="welcome_form">
           <section class="centred flex flex-column">
@@ -72,7 +77,28 @@
           </section>
         </div>
       </div>
+      <!-- WELCOME VIEW -->
+
+      <!-- PEER INFO VIEW -->
+      <div class="app_view centred hidden gap-10" data-view="peer_info">
+        <div class="welcome_form">
+          <section class="centred flex flex-column">
+            <h3>Introduce yourself</h3>
+            <p>Before we get started, tell us a little about yourself</p>
+          </section>
+          <section class="join_form flex-nowrap flex flex-column gap-10 centred">
+            <div class="flex flex-row flex-nowrap gap-5">
+              <input type="text" placeholder="Please, type your name" id="peer_name" maxlength="50" />
+            </div>
+            <div class="flex flex-row flex-nowrap gap-5">
+              <button class="primary" id="change_info">Save my info</button>
+            </div>
+          </section>
+        </div>
+      </div>
+      <!-- PEER INFO VIEW -->
     </div>
+    <!-- APP CONTENT -->
   </div>
   <!-- Application container -->
 

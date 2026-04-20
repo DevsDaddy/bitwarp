@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1086
+ * @build                 1090
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               20.04.2026
+ * @updated               21.04.2026
  */
 /* Import required modules */
 import {
@@ -40,7 +40,7 @@ import {
   TransportCloseCode,
   TransportErrorHandler,
   UUID,
-  PingPacket
+  PingPacket, PeerUpdatePacket
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
@@ -564,7 +564,7 @@ export class BitWarpServer {
     // Update ping for peer
     let pingPacket = PingPacket.decode(clientData.data);
     peerData.ping = Date.now() - pingPacket.payload.timestamp;
-    self.updatePeer(peerData.id, peerData, false);
+    self.updatePeer(peerData.id, peerData, true);
 
     // Send ping packet
     let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
@@ -578,7 +578,22 @@ export class BitWarpServer {
    * @private
    */
   private async processPeerUpdatePacket(clientData : ClientData) : Promise<void> {
+    let self = this;
+    let peerData = self.getPeerByConnectionId(clientData.connection.id);
+    if(!peerData) throw new Error(`No peer data found for ${clientData.connection.id}.`);
+    let encryptor = peerData?.encryptor;
+    if(encryptor) PeerUpdatePacket.setCryptoProvider(encryptor);
 
+    // Update peer data
+    let peerUpdatePacket = PeerUpdatePacket.decode(clientData.data);
+    peerData.info = peerUpdatePacket?.payload?.peerInfo ?? undefined;
+    self.updatePeer(peerData.id, peerData, true);
+
+    // Send peer data packet
+    Logger.info(`Peer info updated for ${clientData.connection.id}. New data:`, peerData.info);
+    let encoded = PeerUpdatePacket.encode({ peerInfo: peerData.info }, peerUpdatePacket.header.requestId, peerUpdatePacket.header.flags);
+    await self.transport.send(self.preparePacket(encoded), clientData.connection)
+    return Promise.resolve();
   }
 
   /**

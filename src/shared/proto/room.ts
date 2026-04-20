@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1031
+ * @build                 1035
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               20.04.2026
+ * @updated               21.04.2026
  */
 /* Import required modules */
 import { Peer, PeerData } from "./peer";
@@ -23,7 +23,6 @@ export interface Room {
 
   // Room access
   accessKey: string;
-  isPublic: boolean;
   needAccept: boolean;
 }
 
