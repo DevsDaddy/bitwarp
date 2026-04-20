@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1029
+ * @build                 1031
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               20.04.2026
@@ -67,4 +67,13 @@ export interface Peer {
   // Handshake
   handshakeComplete : boolean;
   handshakeStep : HandshakeStep;
+
+  // Peer Info
+  isReady : boolean;
+  info ? : any;
 }
+
+/**
+ * Public Peer
+ */
+export type PeerData = Omit<Peer, "connection" | "encryptor" | "clientKey" | "handshakeStep">

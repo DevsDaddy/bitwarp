@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1092
+ * @build                 1094
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               20.04.2026
@@ -49,6 +49,7 @@ export interface BitWarpClientOptions extends BitWarpOptions {
   cryptoProvider ? : CryptoProvider | false;
   cryptoProviderOptions ? : CryptoProviderOptions;
   query ? : any;
+  peerInfo ? : any;
 }
 
 /**
@@ -410,7 +411,8 @@ export class BitWarpClient {
         let handshakePacket = HandshakePacket.encode({
           step: HandshakeStep.FINISH,
           cipherText: ciphertext,
-          protocolVersion: PROTOCOL_VERSION
+          protocolVersion: PROTOCOL_VERSION,
+          peerInfo: self.options.peerInfo
         });
 
         // Send packet
@@ -447,7 +449,9 @@ export class BitWarpClient {
       await self.sendPingPacket();
     }, PING_DELAY);
   }
+  // #endregion
 
+  // #region Work with packets
   /**
    * Send ping packet
    * @private
@@ -505,6 +509,11 @@ export class BitWarpClient {
 
   }
 
+
+  public async createRoom() : Promise<void> {
+
+  }
+
   /**
    * Process room packet
    * @param message {Uint8Array} Raw packet
@@ -556,7 +565,8 @@ export class BitWarpClient {
       compression: new BWeaveCompression(),
       cryptoProvider: new QuarkDashProvider(),
       cryptoProviderOptions: {},
-      query: {}
+      query: {},
+      peerInfo: undefined
     }
   }
   // #endregion

@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1048
+ * @build                 1050
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               18.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
@@ -47,6 +47,7 @@ export interface HandshakeFinish {
   step: HandshakeStep.FINISH;
   protocolVersion: number;
   cipherText : Uint8Array;
+  peerInfo : any;
 }
 
 /**
@@ -95,6 +96,7 @@ export class HandshakePacket extends BasePacket {
         buf.writeUint16(PROTOCOL_VERSION, true);
         buf.writeUint16(resp.cipherText.byteLength, true);
         buf.writeBytes(resp.cipherText);
+        buf.writeDynamic(resp.peerInfo);
         break;
       }
     }
@@ -131,7 +133,8 @@ export class HandshakePacket extends BasePacket {
         const protocolVersion = buf.readUint16(true);
         const keyLen = buf.readUint16(true);
         const cipherText = buf.readBytes(keyLen);
-        return { protocolVersion, step, cipherText };
+        const peerInfo = buf.readDynamic();
+        return { protocolVersion, step, cipherText, peerInfo };
       default:
         throw new Error(`Unknown handshake step: ${step}`);
     }

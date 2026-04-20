@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1014
+ * @build                 1016
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               20.04.2026
@@ -42,7 +42,8 @@ interface EventMap {
   error : [server : BitWarpServer, error : ErrorHandler];
 
   // Handshake
-  handshake : [server : BitWarpServer, clientData : ClientData, handshakeData : HandshakePacketData];
+  handshake : [server : BitWarpServer, connection : ClientConnection, handshakeData : HandshakePacketData];
+  validatePeer: [server : BitWarpServer, connection : ClientConnection, peerInfo : any];
 }
 
 /**

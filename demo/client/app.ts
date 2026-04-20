@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1038
+ * @build                 1039
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               20.04.2026
@@ -358,6 +358,11 @@ class Application {
     query: {
       test: 123,
       me: "Test"
+    },
+    peerInfo: {
+      first_name: "John",
+      last_name: "Doe",
+      email: "start@ncommx.com"
     }
   }));
 

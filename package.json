@@ -86,7 +86,7 @@
   "dependencies": {
     "bweave": "^1.0.0",
     "dotenv": "^17.4.1",
-    "flash-buffer": "^1.1.5",
+    "flash-buffer": "^1.1.6",
     "@neurosell/fgprint": "^1.0.0",
     "quarkdash": "^1.1.0",
     "ws": "^8.0.0"

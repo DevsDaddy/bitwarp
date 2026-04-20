@@ -3,13 +3,13 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1029
+ * @build                 1031
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               17.04.2026
+ * @updated               20.04.2026
  */
 /* Import required modules */
-import { FlashBuffer } from 'flash-buffer';
+import { FlashBuffer, FlashBufferSchema, field } from 'flash-buffer';
 import { PacketType, HeaderEncoder, BasePacket, IPacketData } from '../packet';
 
 /**
@@ -21,17 +21,72 @@ export enum RoomAction {
   LIST = 2,
   CREATE = 3,
   DELETE = 4,
-  UPDATE = 5
+  UPDATE = 5,
+  ACCEPT = 6
 }
 
 /**
- * Room payload
+ * Create room payload
  */
-export interface RoomPayload {
-  action: RoomAction;
-  roomId: string;
-  data?: Uint8Array; // Additional room data, for example: password
+export interface CreateRoomPayload {
+  action: RoomAction.CREATE;
+
 }
+
+/**
+ * Remove room payload
+ */
+export interface RemoveRoomPayload {
+  action: RoomAction.DELETE;
+  roomId: string;
+
+}
+
+/**
+ * Update room payload
+ */
+export interface UpdateRoomPayload {
+  action: RoomAction.UPDATE;
+  roomId: string;
+
+}
+
+/**
+ * Join room payload
+ */
+export interface JoinRoomPayload {
+  action: RoomAction.JOIN;
+  roomId: string;
+
+}
+
+/**
+ * Leave room payload
+ */
+export interface LeaveRoomPayload {
+  action: RoomAction.LEAVE;
+  roomId: string;
+
+}
+
+export interface AcceptRoomPayload {
+  action: RoomAction.ACCEPT;
+  roomId: string;
+
+}
+
+/**
+ * List rooms payload
+ */
+export interface ListRoomsPayload {
+  action: RoomAction.LIST;
+
+}
+
+/**
+ * Room Payload
+ */
+export type RoomPayload = CreateRoomPayload | RemoveRoomPayload | UpdateRoomPayload | JoinRoomPayload | LeaveRoomPayload | ListRoomsPayload | AcceptRoomPayload;
 
 /**
  * Room Packet Data
@@ -52,15 +107,13 @@ export class RoomPacket extends BasePacket {
   public static serialize(payload: RoomPayload): Uint8Array {
     const buf = new FlashBuffer();
     buf.writeUint8(payload.action);
-    buf.writeUint16(payload.roomId.length, true);
-    buf.writeString(payload.roomId, 'utf-8');
-    if (payload.data) {
-      buf.writeUint16(payload.data.byteLength);
-      buf.writeBytes(payload.data);
-    } else {
-      buf.writeUint16(0);
+
+    switch (payload.action) {
+
+      default: {
+        throw new Error("Invalid action type for room packet.");
+      }
     }
-    return buf.toUint8Array();
   }
 
   /**
@@ -73,16 +126,14 @@ export class RoomPacket extends BasePacket {
     buf.writeBytes(rawBuffer);
     buf.reset();
 
+    // Get action
     const action = buf.readUint8() as RoomAction;
-    const roomIdLen = buf.readUint16(true);
-    const roomId = buf.readString(roomIdLen, "utf-8");
-    const dataLen = buf.readUint16();
-    let data: Uint8Array | undefined;
-    if (dataLen > 0) {
-      data = buf.readBytes(dataLen);
-    }
+    switch (action) {
 
-    return { action, roomId, data };
+      default: {
+        throw new Error('Unknown action type for room packet.');
+      }
+    }
   }
 
   /**

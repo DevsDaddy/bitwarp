@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1084
+ * @build                 1086
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               20.04.2026
@@ -49,7 +49,6 @@ import { Router } from './router';
 
 /* Export Libraries */
 export * from "./transport/websocket";
-export * from "./peer";
 export * from "./router";
 
 /**
@@ -268,7 +267,6 @@ export class BitWarpServer {
   // #endregion
 
   // #region Work with packets
-
   /**
    * Handle raw connection
    * @param connection {ClientConnection} Connection from transport
@@ -442,7 +440,9 @@ export class BitWarpServer {
         encryptor: self._encryptProvider?.getNewInstance() ?? undefined,
         handshakeComplete: false,
         handshakeStep : HandshakeStep.INIT,
-        clientKey: new Uint8Array(0)
+        clientKey: new Uint8Array(0),
+        isReady: false,
+        info: undefined
       };
       self._peers.set(peerId, peerData);
     }
@@ -512,21 +512,26 @@ export class BitWarpServer {
           }
         }
 
+        // Validate peer
+        await Router.invoke("validatePeer", self, clientData, handshakeData.peerInfo);
+
         // Update peer
         peerData.handshakeStep = HandshakeStep.FINISH;
         peerData.handshakeComplete = true;
         peerData.clientKey = new Uint8Array(0); // empty key
+        peerData.info = handshakeData.peerInfo;
         self._peers.set(peerData.id, peerData);
 
         // Echo packet
         let responsePacket = HandshakePacket.encode({
           protocolVersion: PROTOCOL_VERSION,
           step: HandshakeStep.FINISH,
-          cipherText: handshakeData.cipherText
+          cipherText: handshakeData.cipherText,
+          peerInfo: handshakeData.peerInfo
         });
 
         // All Right
-        Logger.info(`Handshake complete for connection: ${clientData.id}`)
+        Logger.info(`Handshake complete for connection: ${clientData.id}`, handshakeData.peerInfo);
         await self.transport.send(self.preparePacket(responsePacket), clientData);
         await self.onHandshakeComplete.invokeAsync(clientData);
         return Promise.resolve();
