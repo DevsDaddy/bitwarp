@@ -225,6 +225,28 @@ class Application {
    * @param app {Application} Application instance
    */
   public onCreateRoomRequested(app : Application){
+    // Check peer setup
+    if(!app.isPeerSetup) {
+      app.showView("peer_info");
+      return;
+    }
+
+    // Set header
+    Logger.head("Switched to room creation view");
+
+    // Get elements
+    let roomNameInput = document.getElementById("room_name") as HTMLInputElement;
+    let roomDescInput = document.getElementById("room_description") as HTMLTextAreaElement;
+    let createRoomBtn = document.getElementById("request_room_creation") as HTMLButtonElement;
+    if(!roomNameInput || !createRoomBtn || !roomDescInput) {
+      app.onError.invoke(new ErrorHandler(`Failed to initialize welcome view. Not all form presented`));
+    }
+
+    // Setup form
+    roomNameInput.value = '';
+    roomDescInput.value = '';
+    roomNameInput?.focus();
+    createRoomBtn.disabled = true;
 
   }
   // #endregion
@@ -442,6 +464,8 @@ class Application {
     self._tippy.add(tippy('#slow_network', { content: 'Slow network connection', }));
     // @ts-ignore
     self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${Math.round(self.serverStatus?.uptime / 1000) + " sec" ?? "Unknown"}` : 'Unknown server state' }));
+    // @ts-ignore
+    self._tippy.add(tippy('#private_space_hint', { content: 'Allow users to join only after approval', }));
   }
   // #endregion
 

@@ -72,7 +72,7 @@
             </div>
             <p class="mt-20 mb-20">— OR —</p>
             <div class="flex flex-row flex-nowrap gap-5 w-full centred">
-              <button class="btn secondary" id="create_room">Create new space</button>
+              <button class="btn secondary w-full" id="create_room">Create new space</button>
             </div>
           </section>
         </div>
@@ -93,11 +93,17 @@
             <div class="flex flex-row flex-nowrap gap-5 w-full">
               <textarea id="room_description" class="field w-full" placeholder="Enter the room description"></textarea>
             </div>
-            <div class="flex flex-row flex-nowrap gap-5 w-full">
-
+            <div class="flex flex-row flex-nowrap gap-5 w-full mb-10 mt-10">
+              <input type="text" class="field w-full" placeholder="Create room password" id="room_create_pass" maxlength="50" />
+            </div>
+            <div class="flex flex-row flex-nowrap gap-5 w-full centred">
+              <div class="toggle w-full">
+                <input type="checkbox" id="private_space">
+                <label for="private_space" id="private_space_hint">Create a private space</label>
+              </div>
             </div>
             <div class="flex flex-row flex-nowrap gap-5 w-full centred mt-20">
-              <button class="btn primary" id="request_room_creation">Create space</button>
+              <button class="btn primary w-full" id="request_room_creation">Create space</button>
             </div>
           </section>
         </div>
@@ -116,7 +122,7 @@
               <input type="text" class="field w-full" placeholder="Please, type your name" id="peer_name" required maxlength="50" />
             </div>
             <div class="flex flex-row flex-nowrap gap-5 mt-20 centred w-full">
-              <button class="btn primary" id="change_info">Save my info</button>
+              <button class="btn primary w-full" id="change_info">Save my info</button>
             </div>
           </section>
         </div>
