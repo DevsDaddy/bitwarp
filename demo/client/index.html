@@ -65,19 +65,44 @@
             <h3>Welcome to <span class="welcome-head">BitWarp Demo</span></h3>
             <p>Join or create a space to get started</p>
           </section>
-          <section class="join_form flex-nowrap flex flex-column gap-10 centred">
-            <div class="flex flex-row flex-nowrap gap-5">
-              <input type="text" placeholder="Enter the code" id="room_code" maxlength="50" />
-              <button class="primary" id="join_room">Join</button>
+          <section class="join_form flex-nowrap flex flex-column gap-10 centred w-full">
+            <div class="flex flex-row flex-nowrap gap-5 w-full">
+              <input type="text" class="field w-full" placeholder="Enter the code" id="room_code" required maxlength="50" />
+              <button class="btn primary" id="join_room">Join</button>
             </div>
-            <div><b>— OR —</b></div>
-            <div class="flex flex-row flex-nowrap gap-5">
-              <button class="secondary" id="create_room">Create new space</button>
+            <p class="mt-20 mb-20">— OR —</p>
+            <div class="flex flex-row flex-nowrap gap-5 w-full centred">
+              <button class="btn secondary" id="create_room">Create new space</button>
             </div>
           </section>
         </div>
       </div>
       <!-- WELCOME VIEW -->
+
+      <!-- CREATE ROOM INFO -->
+      <div class="app_view centred hidden gap-10" data-view="create_room">
+        <div class="welcome_form">
+          <section class="centred flex flex-column">
+            <h3>Create a new space</h3>
+            <p>Let's create a new collaboration space.</p>
+          </section>
+          <section class="join_form flex-nowrap flex flex-column gap-10 centred w-full">
+            <div class="flex flex-row flex-nowrap gap-5 w-full">
+              <input type="text" class="field w-full" placeholder="Enter the room name" id="room_name" maxlength="50" />
+            </div>
+            <div class="flex flex-row flex-nowrap gap-5 w-full">
+              <textarea id="room_description" class="field w-full" placeholder="Enter the room description"></textarea>
+            </div>
+            <div class="flex flex-row flex-nowrap gap-5 w-full">
+
+            </div>
+            <div class="flex flex-row flex-nowrap gap-5 w-full centred mt-20">
+              <button class="btn primary" id="request_room_creation">Create space</button>
+            </div>
+          </section>
+        </div>
+      </div>
+      <!-- CREATE ROOM INFO -->
 
       <!-- PEER INFO VIEW -->
       <div class="app_view centred hidden gap-10" data-view="peer_info">
@@ -86,12 +111,12 @@
             <h3>Introduce yourself</h3>
             <p>Before we get started, tell us a little about yourself</p>
           </section>
-          <section class="join_form flex-nowrap flex flex-column gap-10 centred">
-            <div class="flex flex-row flex-nowrap gap-5">
-              <input type="text" placeholder="Please, type your name" id="peer_name" maxlength="50" />
+          <section class="join_form flex-nowrap flex flex-column gap-10 centred w-full">
+            <div class="flex flex-row flex-nowrap gap-5 w-full">
+              <input type="text" class="field w-full" placeholder="Please, type your name" id="peer_name" required maxlength="50" />
             </div>
-            <div class="flex flex-row flex-nowrap gap-5">
-              <button class="primary" id="change_info">Save my info</button>
+            <div class="flex flex-row flex-nowrap gap-5 mt-20 centred w-full">
+              <button class="btn primary" id="change_info">Save my info</button>
             </div>
           </section>
         </div>
