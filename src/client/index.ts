@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1106
+ * @build                 1109
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -561,6 +561,7 @@ export class BitWarpClient {
         function handleResponse(response : CommandPayload){
           if(!response.isRequest && response.commandName === commandName){
             Logger.info(`Received response for command ${commandName}. Execution time: ${response.timestamp - startTimestamp}`, response.data);
+            self.onResponseReturned.removeListener(handleResponse);
             resolve(response.data);
           }
         }

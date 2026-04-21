@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1049
+ * @build                 1052
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -464,7 +464,6 @@ class Application {
     self._tippy.add(tippy('#slow_network', { content: 'Slow network connection', }));
     let uptime = Math.round((self.serverStatus?.uptime ?? 0) / 1000) + " sec";
     let memuse = ((self.serverStatus?.memoryUsage?.rss ?? 0) / (1024 * 1024)).toFixed(2) + " MB";
-    console.log(self.serverStatus?.memoryUsage?.rss)
     // @ts-ignore
     self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${uptime}. RAM: ${memuse}` : 'Unknown server state' }));
     // @ts-ignore
@@ -484,9 +483,6 @@ class Application {
       Logger.info(`Healthcheck complete`, health);
       app.serverStatus = health;
       app.updateStatusBar();
-      setTimeout(async ()=> {
-        await app.healthcheck(app);
-      }, 10000);
     }catch(error : any){
       app.onError.invoke(ErrorHandler.parse(error));
     }
@@ -500,6 +496,7 @@ class Application {
 (async () => {
   // Create application instance
   Logger.head("Welcome to demo application");
+  let healthcheck : number;
   const app = new Application(new BitWarpClient());
 
   // Add application events
@@ -510,6 +507,12 @@ class Application {
   app.onInitialized.addListener(async ()=> {
     // Add healthcheck command
     await app.healthcheck(app);
+    clearInterval(healthcheck);
+
+    // @ts-ignore
+    healthcheck = setInterval(async ()=> {
+      await app.healthcheck(app);
+    }, 10000);
 
     // Already initialized
     Logger.success(`Demo application was initialized`);
