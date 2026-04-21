@@ -10,3 +10,4 @@
  */
 /* Export providers */
 export * from "./bweave";
+export * from "./native";

@@ -14,7 +14,6 @@
 /* Import required modules */
 import { CompressionProvider, ICompressionOptions, ICompressionProvider } from '../proto/compression';
 import { BWeave, BWeaveMode, BWeaveOptions } from 'bweave';
-import * as trace_events from 'node:trace_events';
 
 /**
  * Add compression options
@@ -27,7 +26,7 @@ export interface BWeaveCompressionOptions extends BWeaveOptions, ICompressionOpt
 export class BWeaveCompression extends CompressionProvider implements ICompressionProvider {
   /**
    * Create BWeave compression
-   * @param options {WebSocketServerTransportOptions} Options
+   * @param options {BWeaveCompressionOptions} Options
    */
   constructor(options ? : BWeaveCompressionOptions) {
     // Options merge
