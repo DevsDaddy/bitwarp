@@ -68,6 +68,15 @@ export class Router {
   }
 
   /**
+   * Add command listener
+   * @param commandName {string} command name
+   * @param handler {EventHandler} Event handler
+   */
+  public static onCommand(commandName : string, handler : EventHandler) : void {
+    this.on(`command_${commandName}`, handler);
+  }
+
+  /**
    * Remove event handler
    * @param eventType {any} Event type
    * @param handler {EventHandler} Event handler
@@ -82,6 +91,15 @@ export class Router {
         this.handlers.delete(eventType);
       }
     }
+  }
+
+  /**
+   * Remove command listener
+   * @param commandName {string} Command name
+   * @param handler {EventHandler} Event handler
+   */
+  public static offCommand(commandName: string, handler: EventHandler): void {
+    this.off(`command_${commandName}`, handler);
   }
 
   /**
