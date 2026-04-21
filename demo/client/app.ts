@@ -441,7 +441,7 @@ class Application {
     // @ts-ignore
     self._tippy.add(tippy('#slow_network', { content: 'Slow network connection', }));
     // @ts-ignore
-    self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${(self.serverStatus?.uptime / 1000) + " sec" ?? "Unknown"}` : 'Unknown server state' }));
+    self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${Math.round(self.serverStatus?.uptime / 1000) + " sec" ?? "Unknown"}` : 'Unknown server state' }));
   }
   // #endregion
 
