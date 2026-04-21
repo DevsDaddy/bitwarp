@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1090
+ * @build                 1091
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -569,6 +569,27 @@ export class BitWarpServer {
     // Send ping packet
     let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
     await self.transport.send(self.preparePacket(encoded), clientData.connection)
+    return Promise.resolve();
+  }
+
+  /**
+   * Update peer info
+   * @param peer
+   * @param newData
+   */
+  public async updatePeerInfo(peer : Peer, newData : any) : Promise<void> {
+    let self = this;
+    let encryptor = peer?.encryptor;
+    if(encryptor) PeerUpdatePacket.setCryptoProvider(encryptor);
+
+    // Update peer info
+    peer.info = newData;
+    self.updatePeer(peer.id, peer, true);
+
+    // Send peer data packet
+    Logger.info(`Peer info updated for Peer ${peer.id}. New data:`, peer.info);
+    let encoded = PeerUpdatePacket.encode({ peerInfo: peer.info });
+    await self.transport.send(self.preparePacket(encoded), peer.connection)
     return Promise.resolve();
   }
 
