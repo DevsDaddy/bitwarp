@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1020
+ * @build                 1025
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -72,7 +72,7 @@ export class Router {
    * @param commandName {string} command name
    * @param handler {EventHandler} Event handler
    */
-  public static onCommand(commandName : string, handler : EventHandler<[server : BitWarpServer, clientData : ClientData, response : Function]>) : void {
+  public static onCommand(commandName : string, handler : EventHandler<[server : BitWarpServer, clientData : ClientData, request : any, response : Function]>) : void {
     this.on(`command_${commandName}`, handler);
   }
 
@@ -98,7 +98,7 @@ export class Router {
    * @param commandName {string} Command name
    * @param handler {EventHandler} Event handler
    */
-  public static offCommand(commandName: string, handler: EventHandler<[server : BitWarpServer, clientData : ClientData, response : Function]>): void {
+  public static offCommand(commandName: string, handler: EventHandler<[server : BitWarpServer, clientData : ClientData, request : any, response : Function]>): void {
     this.off(`command_${commandName}`, handler);
   }
 
@@ -143,7 +143,7 @@ export class Router {
    * @param commandName {string} Command name
    * @param args Arguments
    */
-  public static async invokeCommand(commandName : string, ...args : [server : BitWarpServer, clientData : ClientData, response : Function]): Promise<void> {
+  public static async invokeCommand(commandName : string, ...args : [server : BitWarpServer, clientData : ClientData, request : any, response : Function]): Promise<void> {
     await this.invoke(`command_${commandName}`, ...args);
   }
 

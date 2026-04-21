@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1095
+ * @build                 1100
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -647,8 +647,8 @@ export class BitWarpServer {
     }
 
     // Execute command
-    Logger.info(`Execute command ${commandName} called by connection ${clientData.connection.id}.`);
-    await Router.invokeCommand(commandName, self, clientData, commandResponse);
+    Logger.info(`Execute command ${commandName} called by connection ${clientData.connection.id} with data`, command.payload.data);
+    await Router.invokeCommand(commandName, self, clientData, command.payload.data, commandResponse);
 
     // If need to send response
     if(command.payload.isNeedResponse){
