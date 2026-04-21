@@ -462,8 +462,11 @@ class Application {
     self._tippy.add(tippy('#server_url', { content: 'Connection url', }));
     // @ts-ignore
     self._tippy.add(tippy('#slow_network', { content: 'Slow network connection', }));
+    let uptime = Math.round((self.serverStatus?.uptime ?? 0) / 1000) + " sec";
+    let memuse = ((self.serverStatus?.memoryUsage?.rss ?? 0) / (1024 * 1024)).toFixed(2) + " MB";
+    console.log(self.serverStatus?.memoryUsage?.rss)
     // @ts-ignore
-    self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${Math.round(self.serverStatus?.uptime / 1000) + " sec" ?? "Unknown"}` : 'Unknown server state' }));
+    self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${uptime}. RAM: ${memuse}` : 'Unknown server state' }));
     // @ts-ignore
     self._tippy.add(tippy('#private_space_hint', { content: 'Allow users to join only after approval', }));
   }
