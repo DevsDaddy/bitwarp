@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1091
+ * @build                 1095
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -40,7 +40,7 @@ import {
   TransportCloseCode,
   TransportErrorHandler,
   UUID,
-  PingPacket, PeerUpdatePacket
+  PingPacket, PeerUpdatePacket, CommandPacket
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
@@ -59,6 +59,7 @@ export interface ClientPermissions {
   allowRoomUpdate : boolean;
   allowRoomDelete : boolean;
   allowRoomList : boolean;
+  allowCommands : boolean;
 }
 
 /**
@@ -153,6 +154,7 @@ export class BitWarpServer {
   public get isStarted (): boolean { return this._isStarted; }
   public get isDebug (): boolean { return this._isDebug; }
   public get uptime() : number { return (!this._isStarted || this._connectedTime === 0) ? 0 : Date.now() - this._connectedTime; }
+  public get performance() : Performance { return this._performance; }
   // #endregion
 
   // #region Server connection
@@ -623,7 +625,45 @@ export class BitWarpServer {
    * @private
    */
   private async processCommandPacket(clientData : ClientData) : Promise<void> {
+    let self = this;
+    if(!self.options.clientPermissions?.allowCommands) throw new Error(`Failed to execute command. Commands are disabled by server config.`);
 
+    // Get Peer and Encryptor
+    let peerData = self.getPeerByConnectionId(clientData.connection.id);
+    if(!peerData) throw new Error(`No peer data found for ${clientData.connection.id}.`);
+    let encryptor = peerData?.encryptor;
+    if(encryptor) CommandPacket.setCryptoProvider(encryptor);
+
+    // Decode command data
+    let command = CommandPacket.decode(clientData.data);
+    let commandName = command.payload.commandName;
+
+    // Create response wrapper
+    let isResponseCalled : boolean = false;
+    let finalResponse : any = undefined;
+    function commandResponse(responseData : any){
+      if(!isResponseCalled) isResponseCalled = true;
+      finalResponse = responseData;
+    }
+
+    // Execute command
+    Logger.info(`Execute command ${commandName} called by connection ${clientData.connection.id}.`);
+    await Router.invokeCommand(commandName, self, clientData, commandResponse);
+
+    // If need to send response
+    if(command.payload.isNeedResponse){
+      let response = CommandPacket.encode({
+        isRequest: false,
+        isNeedResponse: command.payload.isNeedResponse,
+        commandName: commandName,
+        timestamp: Date.now(),
+        data: (isResponseCalled) ? finalResponse : null
+      }, command.header.requestId, command.header.flags);
+      await self.transport.send(self.preparePacket(response), clientData.connection)
+    }
+
+    // Resolve
+    return Promise.resolve();
   }
 
   /**
@@ -768,7 +808,8 @@ export class BitWarpServer {
         allowRoomCreate: true,
         allowRoomDelete: true,
         allowRoomUpdate: true,
-        allowRoomList: true
+        allowRoomList: true,
+        allowCommands: true
       }
     }
   }

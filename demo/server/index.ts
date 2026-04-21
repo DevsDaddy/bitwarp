@@ -3,14 +3,14 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1010
+ * @build                 1012
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               21.04.2026
  */
 /* Import required modules */
 import { BaseEvent, ErrorHandler, ErrorType, Logger } from '../../src/shared';
-import { BitWarpServer, BitWarpServerOptions } from '../../src/server';
+import { BitWarpServer, BitWarpServerOptions, Router } from '../../src/server';
 
 /**
  * Demo application server
@@ -63,6 +63,15 @@ class Application {
   // Create application instance
   Logger.head("Welcome to demo application");
   const app = new Application(new BitWarpServer());
+
+  // Add command handler
+  Router.onCommand("health", (server, clientData, response) => {
+    Logger.log(`Routing health command for connection ${clientData.connection}`);
+    response({
+      memoryUsage: server.performance.getMemoryUsage(),
+      uptime: server.uptime
+    });
+  });
 
   // Add application events
   app.onInitialized.addListener(()=> {

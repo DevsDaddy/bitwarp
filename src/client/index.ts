@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1098
+ * @build                 1102
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -33,7 +33,7 @@ import {
   TransportErrorHandler,
   UUID,
   QuarkDashProvider, PING_DELAY,
-  PingPacket, RoomInfo, PeerUpdatePacket
+  PingPacket, RoomInfo, PeerUpdatePacket, CommandPayload, CommandPacket
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 import { FlashBuffer } from 'flash-buffer';
@@ -50,6 +50,7 @@ export interface BitWarpClientOptions extends BitWarpOptions {
   cryptoProviderOptions ? : CryptoProviderOptions;
   query ? : any;
   peerInfo ? : any;
+  responseTimeout ? : number;
 }
 
 /**
@@ -89,6 +90,9 @@ export class BitWarpClient {
   private _publicKey ? : Uint8Array;
   private _ping ? : number;
   private _pintTimer ? : any;
+
+  // Command event
+  private readonly onResponseReturned : BaseEvent<CommandPayload> = new BaseEvent<CommandPayload>();
 
   // #region basic setup and fields
   /**
@@ -518,6 +522,55 @@ export class BitWarpClient {
     let peerData = PeerUpdatePacket.decode(message);
     self.onPeerInfoUpdated.invoke(peerData.payload.peerInfo);
     Logger.info(`Peer info updated. New info: `, peerData.payload.peerInfo);
+    return Promise.resolve();
+  }
+
+  /**
+   * Call server command
+   * @param commandName
+   * @param requestData
+   * @param isNeedResponse
+   */
+  public async callServerCommand(commandName : string, requestData : any, isNeedResponse : boolean = true) : Promise<any> {
+    let self = this;
+    return new Promise(async (resolve, reject)=> {
+      let responseTimeout : any;
+
+      // Pack command
+      if(self._encryptProvider) CommandPacket.setCryptoProvider(self._encryptProvider);
+      let startTimestamp = Date.now();
+      let command = CommandPacket.encode({
+        isRequest: true,
+        isNeedResponse: isNeedResponse,
+        commandName: commandName,
+        timestamp: startTimestamp,
+        data: requestData
+      });
+
+      Logger.info(`Requesting command: ${commandName}`);
+      await self.transport.send({ packetId: UUID.v4(), data: self.preparePacket(command)});
+      if(isNeedResponse){
+        // Add timeout
+        responseTimeout = setTimeout(()=>{
+          reject(`Response timeout for command: ${commandName}`);
+          // @ts-ignore
+          clearTimeout(responseTimeout);
+        }, self.options.responseTimeout as number);
+
+        // Wait for response
+        function handleResponse(response : CommandPayload){
+          if(!response.isRequest && response.commandName === commandName){
+            Logger.info(`Received response for command ${commandName}. Execution time: ${response.timestamp - startTimestamp}`, response.data);
+            resolve(response.data);
+          }
+        }
+
+        self.onResponseReturned.removeListener(handleResponse);
+        self.onResponseReturned.addListener(handleResponse);
+      }else{
+        resolve(null);
+      }
+    });
   }
 
   /**
@@ -526,7 +579,11 @@ export class BitWarpClient {
    * @private
    */
   private async processCommandResponsePacket(message : Uint8Array) : Promise<void> {
-
+    let self = this;
+    if(self._encryptProvider) CommandPacket.setCryptoProvider(self._encryptProvider);
+    let response = CommandPacket.decode(message);
+    self.onResponseReturned.invoke(response.payload);
+    return Promise.resolve();
   }
 
   /**
@@ -610,7 +667,8 @@ export class BitWarpClient {
       cryptoProvider: new QuarkDashProvider(),
       cryptoProviderOptions: {},
       query: {},
-      peerInfo: undefined
+      peerInfo: undefined,
+      responseTimeout: 5000
     }
   }
   // #endregion

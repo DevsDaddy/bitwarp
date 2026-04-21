@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1043
+ * @build                 1045
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -65,9 +65,9 @@ class Application {
       self.setLabel("loading_state", "Encryption establish...");
       self.isPeerSetup = false;
     });
-    self.client.onHandshakeComplete.addListener(()=>{
+    self.client.onHandshakeComplete.addListener(async ()=>{
       self.setLabel("loading_state", "Initialized.");
-      self.onInitialized.invoke();
+      await self.onInitialized.invokeAsync();
 
       // Has crypto provider
       self.showToast(
@@ -435,6 +435,22 @@ class Application {
     tippy('#slow_network', { content: 'Slow network connection', });
   }
   // #endregion
+
+  // #region healthcheck
+  public async healthcheck(app : Application) : Promise<void> {
+    try{
+      let health = await app.client.callServerCommand("health", {}, true);
+      if(!health){
+        app.onError.invoke(new ErrorHandler("Healthcheck failed. No data response from server."))
+        return;
+      }
+
+      Logger.info(`Healthcheck complete`, health);
+    }catch(error : any){
+      app.onError.invoke(ErrorHandler.parse(error));
+    }
+  }
+  // #endregion
 }
 
 /**
@@ -450,12 +466,18 @@ class Application {
   app.toggleLoader(true);
   app.toggleLayout("app_content", false);
   app.setLabel("loading_state", "Initializing...");
-  app.onInitialized.addListener(()=> {
+  app.onInitialized.addListener(async ()=> {
     Logger.success(`Demo application was initialized`);
     app.toggleLoader(false);
     app.updateStatusBar();
     app.toggleLayout("app_content", true);
     app.showView("welcome");
+
+    // Add healthcheck command
+    await app.healthcheck(app);
+    setInterval(async ()=> {
+      await app.healthcheck(app);
+    }, 10000);
   })
   app.onInitializationError.addListener((error)=> {
     app.setLabel("loading_state", "Initialization Error");
