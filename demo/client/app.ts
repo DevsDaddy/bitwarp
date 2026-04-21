@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1045
+ * @build                 1049
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -467,17 +467,15 @@ class Application {
   app.toggleLayout("app_content", false);
   app.setLabel("loading_state", "Initializing...");
   app.onInitialized.addListener(async ()=> {
+    // Add healthcheck command
+    await app.healthcheck(app);
+
+    // Already initialized
     Logger.success(`Demo application was initialized`);
     app.toggleLoader(false);
     app.updateStatusBar();
     app.toggleLayout("app_content", true);
     app.showView("welcome");
-
-    // Add healthcheck command
-    await app.healthcheck(app);
-    setInterval(async ()=> {
-      await app.healthcheck(app);
-    }, 10000);
   })
   app.onInitializationError.addListener((error)=> {
     app.setLabel("loading_state", "Initialization Error");

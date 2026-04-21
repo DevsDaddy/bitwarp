@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1102
+ * @build                 1106
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -449,12 +449,12 @@ export class BitWarpClient {
     let self = this;
     self._handshakeStep = HandshakeStep.FINISH;
     self._isHandshakeComplete = true;
-    await self.onHandshakeComplete.invokeAsync();
 
     self._performance.mark(PERF_CONSTANTS.HANDSHAKE_COMPLETE);
     Logger.success(`Handshake completed in ${self._performance.measure(PERF_CONSTANTS.HANDSHAKE_MEASURE, PERF_CONSTANTS.HANDSHAKE_STARTED, PERF_CONSTANTS.HANDSHAKE_COMPLETE)} ms. Ready for messaging with server.`);
 
     // Run ping
+    await self.onHandshakeComplete.invokeAsync();
     await self.sendPingPacket();
     self._pintTimer = setInterval(async ()=> {
       await self.sendPingPacket();

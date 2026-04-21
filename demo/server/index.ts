@@ -3,7 +3,7 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1012
+ * @build                 1014
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
  * @updated               21.04.2026
@@ -65,7 +65,7 @@ class Application {
   const app = new Application(new BitWarpServer());
 
   // Add command handler
-  Router.onCommand("health", (server, clientData, response) => {
+  Router.onCommand("health", async (server, clientData, response) => {
     Logger.log(`Routing health command for connection ${clientData.connection}`);
     response({
       memoryUsage: server.performance.getMemoryUsage(),
