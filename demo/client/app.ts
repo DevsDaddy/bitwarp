@@ -26,7 +26,9 @@ class Application {
   // Client Instance
   private readonly _client : BitWarpClient;
   private _isToastSetup : boolean = false;
+  private _tippy : Set<any> = new Set<any>();
   protected isPeerSetup : boolean = false;
+  protected serverStatus : any = undefined;
 
   // Routes
   private readonly routes : object = {
@@ -308,6 +310,7 @@ class Application {
     self.toggleComponent("unsecured_icon", !isSecured);
     self.toggleComponent("compressed_icon", isCompressed);
     self.toggleComponent("uncompressed_icon", !isCompressed);
+    self.setupTooltips();
   }
 
   /**
@@ -421,18 +424,24 @@ class Application {
 
   // Setup tooltips
   private setupTooltips(){
+    let self = this;
+
+    self._tippy.forEach(item => { item?.[0]?.destroy(); });
+
     // @ts-ignore
-    tippy('#secured_connection', { content: 'Secured (encrypted) connection', });
+    self._tippy.add(tippy('#secured_connection', { content: 'Secured (encrypted) connection', }));
     // @ts-ignore
-    tippy('#unsecured_connection', { content: 'Unsecured connection', });
+    self._tippy.add(tippy('#unsecured_connection', { content: 'Unsecured connection', }));
     // @ts-ignore
-    tippy('#compressed_connection', { content: 'Compression enabled', });
+    self._tippy.add(tippy('#compressed_connection', { content: 'Compression enabled', }));
     // @ts-ignore
-    tippy('#uncompressed_connection', { content: 'Uncompressed connection', });
+    self._tippy.add(tippy('#uncompressed_connection', { content: 'Uncompressed connection', }));
     // @ts-ignore
-    tippy('#server_url', { content: 'Connection url', });
+    self._tippy.add(tippy('#server_url', { content: 'Connection url', }));
     // @ts-ignore
-    tippy('#slow_network', { content: 'Slow network connection', });
+    self._tippy.add(tippy('#slow_network', { content: 'Slow network connection', }));
+    // @ts-ignore
+    self._tippy.add(tippy('#server_state', { content: (self.serverStatus) ? `Server uptime: ${(self.serverStatus?.uptime / 1000) + " sec" ?? "Unknown"}` : 'Unknown server state' }));
   }
   // #endregion
 
@@ -446,6 +455,11 @@ class Application {
       }
 
       Logger.info(`Healthcheck complete`, health);
+      app.serverStatus = health;
+      app.updateStatusBar();
+      setTimeout(async ()=> {
+        await app.healthcheck(app);
+      }, 10000);
     }catch(error : any){
       app.onError.invoke(ErrorHandler.parse(error));
     }

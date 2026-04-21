@@ -211,6 +211,7 @@ p {
 
 /* Connect Icon */
 .connect{
+    cursor: pointer;
     position: relative;
     display: flex;
     flex-direction: row;
