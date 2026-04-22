@@ -16,11 +16,13 @@ import {
   ClientConnection,
   ClientData,
   ClientDisconnect,
+  CommandPacket,
   CryptoProvider,
   CryptoProviderOptions,
   ErrorHandler,
   ErrorType,
   GeneralPacketNames,
+  Grants,
   HandshakePacket,
   HandshakePacketData,
   HandshakeStep,
@@ -33,14 +35,20 @@ import {
   PacketType,
   ParseUtils,
   Peer,
+  PeerData,
+  PeerUpdatePacket,
   PERF_CONSTANTS,
   Performance,
+  PingPacket,
   PROTOCOL_VERSION,
   QuarkDashProvider,
+  Room,
+  RoomData,
+  RoomGrants,
+  RoomInfo, SHA512,
   TransportCloseCode,
   TransportErrorHandler,
-  UUID,
-  PingPacket, PeerUpdatePacket, CommandPacket
+  UUID
 } from '../shared';
 import { WebSocketServerTransport } from './transport/websocket';
 import 'dotenv/config';
@@ -70,6 +78,7 @@ export interface BitWarpServerOptions extends BitWarpOptions{
   cryptoProvider ? : CryptoProvider | false;
   cryptoProviderOptions ? : CryptoProviderOptions;
   clientPermissions ? : ClientPermissions;
+  defaultRoomGrants ? : RoomGrants;
 }
 
 /**
@@ -108,6 +117,16 @@ export class BitWarpServer {
   public readonly onHandshakeStarted : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
   public readonly onHandshakeComplete : BaseEvent<ClientConnection> = new BaseEvent<ClientConnection>();
 
+  // Peer and Room Events
+  public readonly onPeerCreated : BaseEvent<Peer> = new BaseEvent<Peer>();
+  public readonly onPeerUpdated : BaseEvent<Peer> = new BaseEvent<Peer>();
+  public readonly onPeerRemoved : BaseEvent<string> = new BaseEvent<string>();
+  public readonly onBeforeRoomCreated : BaseEvent<Room> = new BaseEvent<Room>();
+  public readonly onRoomCreated : BaseEvent<Room> = new BaseEvent<Room>();
+  public readonly onBeforeRoomUpdated : BaseEvent<Room> = new BaseEvent<Room>();
+  public readonly onRoomUpdated : BaseEvent<Room> = new BaseEvent<Room>();
+  public readonly onRoomRemoved : BaseEvent<string> = new BaseEvent<string>();
+
   // Server state
   private _isStarted = false;
   private _connectedTime : number = 0;
@@ -115,8 +134,9 @@ export class BitWarpServer {
   // Encryptors
   private _encryptProvider ? : CryptoProvider;
 
-  // Peers List
+  // Peers List and Rooms list
   private _peers : Map<string, Peer> = new Map<string, Peer>();
+  private _rooms : Map<string, Room> = new Map<string, Room>();
 
   // #region basic setup and fields
   /**
@@ -288,8 +308,9 @@ export class BitWarpServer {
   private async handleRawDisconnect(disconnect : ClientDisconnect) {
     let self = this;
     await Router.invoke("disconnect", self, disconnect.connectionId);
-    self.removePeerByConnectionId(disconnect.connectionId);
+    await self.removePeerByConnectionId(disconnect.connectionId);
     await self.onDisconnect.invokeAsync(disconnect.connectionId);
+    return Promise.resolve();
   }
 
   /**
@@ -398,6 +419,8 @@ export class BitWarpServer {
           await self.sendError(clientData.connection, error);
         }
       }
+
+      return Promise.resolve();
     }catch (error : any){
       let errorData = new ErrorHandler(`Failed to deserialize packet from client. Unknown packet type`, null, ErrorType.ClientException)
       Logger.error(`Failed to process raw message for ${clientData.connection.id}: ${error?.message ?? "Unknown error"}`);
@@ -451,6 +474,9 @@ export class BitWarpServer {
         info: undefined
       };
       self._peers.set(peerId, peerData);
+      let peerInstance = self._peers.get(peerId) as Peer;
+      await self.onPeerCreated.invokeAsync(peerInstance);
+      await Router.invoke("peerCreated", self, peerId, peerInstance);
     }
 
     // Check protocol version
@@ -486,18 +512,18 @@ export class BitWarpServer {
         // Update Peer
         peerData.clientKey = handshakeData.clientPublicKey;
         peerData.handshakeStep = HandshakeStep.RESPONSE;
-        self._peers.set(peerData.id, peerData);
+        await self.updatePeer(peerData.id, peerData);
 
         // Send handshake
         await self.transport.send(self.preparePacket(responsePacket), clientData);
         await self.onHandshakeStarted.invokeAsync(clientData);
-        return Promise.resolve();
+        break;
       }
       case HandshakeStep.RESPONSE: {
         let error = new ErrorHandler(`Failed to process handshake. Response handshake step is readonly.`);
-        self.removePeerByConnectionId(clientData.id);
+        await self.removePeerByConnectionId(clientData.id);
         await self.transport.send(error.toBuffer(), clientData);
-        return Promise.resolve();
+        break;
       }
       case HandshakeStep.FINISH: {
         // Check encryptor
@@ -526,7 +552,7 @@ export class BitWarpServer {
         peerData.handshakeComplete = true;
         peerData.clientKey = new Uint8Array(0); // empty key
         peerData.info = handshakeData.peerInfo;
-        self._peers.set(peerData.id, peerData);
+        await self.updatePeer(peerData.id, peerData);
 
         // Echo packet
         let responsePacket = HandshakePacket.encode({
@@ -540,7 +566,7 @@ export class BitWarpServer {
         Logger.info(`Handshake complete for connection: ${clientData.id}`, handshakeData.peerInfo);
         await self.transport.send(self.preparePacket(responsePacket), clientData);
         await self.onHandshakeComplete.invokeAsync(clientData);
-        return Promise.resolve();
+        break;
       }
       default: {
         let error = new ErrorHandler(`Unknown handshake step received.`);
@@ -548,6 +574,8 @@ export class BitWarpServer {
         return Promise.resolve();
       }
     }
+
+    return Promise.resolve();
   }
 
   /**
@@ -566,7 +594,7 @@ export class BitWarpServer {
     // Update ping for peer
     let pingPacket = PingPacket.decode(clientData.data);
     peerData.ping = Date.now() - pingPacket.payload.timestamp;
-    self.updatePeer(peerData.id, peerData, true);
+    await self.updatePeer(peerData.id, peerData, true);
 
     // Send ping packet
     let encoded = PingPacket.encode(pingPacket.payload, pingPacket.header.requestId, pingPacket.header.flags);
@@ -586,7 +614,7 @@ export class BitWarpServer {
 
     // Update peer info
     peer.info = newData;
-    self.updatePeer(peer.id, peer, true);
+    await self.updatePeer(peer.id, peer, true);
 
     // Send peer data packet
     Logger.info(`Peer info updated for Peer ${peer.id}. New data:`, peer.info);
@@ -610,7 +638,7 @@ export class BitWarpServer {
     // Update peer data
     let peerUpdatePacket = PeerUpdatePacket.decode(clientData.data);
     peerData.info = peerUpdatePacket?.payload?.peerInfo ?? undefined;
-    self.updatePeer(peerData.id, peerData, true);
+    await self.updatePeer(peerData.id, peerData, true);
 
     // Send peer data packet
     Logger.info(`Peer info updated for ${clientData.connection.id}. New data:`, peerData.info);
@@ -673,6 +701,7 @@ export class BitWarpServer {
    */
   private async processEventPacket(clientData : ClientData) : Promise<void> {
 
+    return Promise.resolve();
   }
 
   /**
@@ -682,6 +711,7 @@ export class BitWarpServer {
    */
   private async processRawPacket(clientData : ClientData) : Promise<void> {
 
+    return Promise.resolve();
   }
 
   /**
@@ -691,6 +721,7 @@ export class BitWarpServer {
    */
   private async processRoomPacket(clientData : ClientData) : Promise<void> {
 
+    return Promise.resolve();
   }
 
   /**
@@ -700,6 +731,7 @@ export class BitWarpServer {
    */
   private async processStreamPacket(clientData : ClientData) : Promise<void> {
 
+    return Promise.resolve();
   }
 
   /**
@@ -709,6 +741,7 @@ export class BitWarpServer {
    */
   private async processSyncActionPacket(clientData : ClientData) : Promise<void> {
 
+    return Promise.resolve();
   }
 
   /**
@@ -718,6 +751,20 @@ export class BitWarpServer {
    */
   private async processSyncObjectPacket(clientData : ClientData) : Promise<void> {
 
+    return Promise.resolve();
+  }
+  // #endregion
+
+  // #region work with peers
+  /**
+   * Get ReadOnly Peer
+   * @param peerId {string} Read only peer
+   * @returns {PeerData} Read-only peer data
+   */
+  public getReadonlyPeer(peerId : string) : PeerData | undefined {
+    let self = this;
+    if(!self._peers.has(peerId)) return undefined;
+    return self._peers.get(peerId) as PeerData;
   }
 
   /**
@@ -745,11 +792,17 @@ export class BitWarpServer {
    * @param notify {boolean} Notify changes?
    * @private
    */
-  private updatePeer(peerId : string, peerData : Peer, notify : boolean = true) {
+  public async updatePeer(peerId : string, peerData : Peer, notify : boolean = true) : Promise<void> {
     let self = this;
     self._peers.set(peerId, peerData);
+    let peer = self._peers.get(peerId) as Peer;
 
-    // TODO: Notify
+    if(notify){
+      await self.onPeerUpdated.invokeAsync(peer);
+      await Router.invoke("peerUpdated", self, peerId, peer);
+    }
+
+    return Promise.resolve();
   }
 
   /**
@@ -757,14 +810,16 @@ export class BitWarpServer {
    * @param peerId {string} Peer ID
    * @private
    */
-  private removePeer(peerId : string){
+  public async removePeer(peerId : string) : Promise<void> {
     let self = this;
-    if(!self._peers.has(peerId)) return;
+    if(!self._peers.has(peerId)) return Promise.resolve();
 
     // Remove peer
     self._peers.delete(peerId);
-    // Notify peer removed
-    return;
+    self.removePeerFromAllRooms(peerId);
+    await self.onPeerRemoved.invokeAsync(peerId);
+    await Router.invoke("peerRemoved", self, peerId);
+    return Promise.resolve();
   }
 
   /**
@@ -772,15 +827,239 @@ export class BitWarpServer {
    * @param connectionId {string} Connection ID
    * @private
    */
-  private removePeerByConnectionId(connectionId : string){
+  private async removePeerByConnectionId(connectionId : string) : Promise<void>{
     let self = this;
 
     // Remove from peers
+    let peerId = null;
     self._peers.forEach((peer : Peer) => {
       if(peer.connection.id === connectionId){
-        self.removePeer(peer.id);
+        peerId = peer.id;
         return;
       }
+    });
+    if(peerId) await self.removePeer(peerId);
+    return Promise.resolve();
+  }
+  // #endregion
+
+  // #region Rooms management
+  /**
+   * Get room by room id
+   * @param roomId {string} Room id
+   * @returns {Room|undefined} Return room instance or undefined
+   */
+  public getRoom(roomId : string) : Room | undefined {
+    let self = this;
+    return self._rooms.get(roomId);
+  }
+
+  /**
+   * Get readonly room
+   * @param roomId {string} Room ID
+   * @returns {RoomData} Read only room data
+   */
+  public getReadonlyRoom(roomId : string) : RoomData | undefined {
+    let self = this;
+    let room = self.getRoom(roomId);
+    if(!room) return undefined;
+
+    // Return room as Read Only
+    else return room as RoomData;
+  }
+
+  /**
+   * Create new room instance
+   * @param ownerId {string} Owner Peer ID. Empty if owner a server
+   * @param info {RoomInfo} Room info
+   * @param grants {RoomGrants} Room grants or null for default
+   * @param accessKey {string} Access key (Password)
+   * @param needAccept {boolean} Is need accept to join? If owner is server - ignores
+   * @param persistent {boolean} Is persistent room (don't remove when no peers)
+   * @returns {Room} Room instance
+   */
+  public async createRoom(ownerId : string, info : RoomInfo, grants: RoomGrants | null = null, accessKey : string = "", needAccept : boolean = false, persistent : boolean = false) : Promise<Room> {
+    let self = this;
+
+    // Check owner id
+    if(ownerId.length > 0) {
+      let peer = self._peers.get(ownerId);
+      if(!peer) throw new Error(`Failed to create room. Owner ID ${ownerId} is not found at server.`);
+    }
+
+    // Define unique room id
+    let roomId = "";
+    while (roomId.length < 1) {
+      let uuid = UUID.v4();
+      if(!self.rooms.has(uuid)) roomId = uuid;
+    }
+
+    // Create Room object
+    let room : Room = {
+      id: roomId,
+      owner: ownerId,
+      info: info,
+      accessKey: (accessKey.length > 0) ? SHA512.hash(accessKey, false) as string : "",
+      needAccept : (ownerId.length > 0) ? needAccept : false,
+      peers: new Set<string>(),
+      persistent: persistent,
+      grants: (grants) ? {...self.options.defaultRoomGrants as RoomGrants, ...grants as RoomGrants} : self.options.defaultRoomGrants as RoomGrants
+    };
+
+    // On before room created
+    await self.onBeforeRoomCreated.invokeAsync(room);
+    await Router.invoke("roomBeforeCreated", self, room);
+
+    // On room created
+    self._rooms.set(roomId, room);
+    let roomInstance = self._rooms.get(roomId) as Room;
+    await self.onRoomCreated.invokeAsync(roomInstance);
+    await Router.invoke("roomCreated", self, roomInstance);
+    return roomInstance;
+  }
+
+  /**
+   * Update an exists room
+   * @param roomId {string} Room ID
+   * @param ownerId {string|null} New owner ID
+   * @param info {RoomInfo|null} New room info
+   * @param grants {RoomGrants|null} New room grants
+   * @param accessKey {string} New access key
+   * @param needAccept {boolean} Is need accept to join
+   * @param persistent {boolean} Is room persistent
+   * @returns {Room} Updated room data
+   */
+  public async updateRoom(roomId : string, ownerId : string | null = null, info : RoomInfo | null = null, grants: RoomGrants | null = null, accessKey : string = "", needAccept : boolean = false, persistent : boolean = false) : Promise<Room> {
+    let self = this;
+
+    // Check room id
+    if(roomId.length < 1) {
+      throw new Error(`Failed to update room. No room id is specified.`);
+    }
+
+    // Check owner id
+    if(ownerId && ownerId.length > 0) {
+      let peer = self._peers.get(ownerId);
+      if(!peer) throw new Error(`Failed to create room. Owner ID ${ownerId} is not found at server.`);
+    }
+
+    // Find room
+    let room = self.getRoom(roomId);
+    if(!room) throw new Error(`Failed to update room. Room with ID ${roomId} is not found at server.`);
+
+    // Change room data
+    if(ownerId) room.owner = ownerId;
+    if(info) room.info = info;
+    room.accessKey = (accessKey.length > 0) ? SHA512.hash(accessKey, false) as string : "";
+    room.persistent = persistent;
+    if(grants) room.grants = {...room.grants, ...grants};
+    if(ownerId)
+      room.needAccept = (ownerId.length > 0) ? needAccept : false;
+    else
+      room.needAccept = (room.owner.length > 0) ? needAccept : false;
+
+    // Update room data
+    await self.onBeforeRoomUpdated.invokeAsync(room);
+    await Router.invoke("roomBeforeUpdated", self, room);
+    self._rooms.set(roomId, room);
+    let roomInstance = self._rooms.get(roomId) as Room;
+    await self.onRoomUpdated.invokeAsync(roomInstance);
+    await Router.invoke("roomUpdated", self, roomInstance);
+    return roomInstance;
+  }
+
+  public removeRoom() {
+
+  }
+
+  /**
+   * Return all rooms
+   * @returns {Map<string, Room>} Rooms list
+   */
+  public get rooms() {
+    return this._rooms;
+  }
+
+  /**
+   * Return all public rooms
+   * @returns {Map<string, Room>} Public rooms only
+   */
+  public get publicRooms() {
+    return new Map(
+      [...this.rooms.entries()]
+        .filter(([roomId, room]) => room.needAccept)
+    );
+  }
+
+  /**
+   * Get an array of rooms for peer
+   * @param peerId {string} Peer id
+   * @returns Room[] Array of rooms
+   */
+  public getPeerRooms(peerId : string) : Room[] {
+    let self = this;
+    let rooms : Room[] = [];
+    self._rooms.forEach((room : Room) => {
+      if(room.peers.has(peerId) || room.owner === peerId) rooms.push(room);
+    });
+
+    return rooms;
+  }
+
+  /**
+   * Remove peer from room
+   * @param roomId {string} Room ID
+   * @param peerId {string} Peer ID
+   */
+  public removePeerFromRoom(roomId : string, peerId : string) : void {
+    let self = this;
+    let room = self.getRoom(roomId);
+    if(!room) return;
+
+    // Check for owner
+    if(room.owner === peerId){
+      if(room.persistent) {
+        room.owner = "";
+      }else{
+        // TODO: Destroy room
+        return;
+      }
+    }
+
+    // Remove peer from room
+    room.peers.delete(peerId);
+    if(room.peers.size < 1 && !room.persistent){
+      // TODO: Destroy room
+      return;
+    }
+
+    // TODO: Notify peer removed
+    return;
+  }
+
+  /**
+   * Remove peer from rooms
+   * @param roomIds {string[]} Room IDs
+   * @param peerId {string} Peer ID
+   */
+  public removePeerFromRooms(roomIds : string[], peerId : string) : void {
+    let self = this;
+    let roomsNum = roomIds.length;
+    if(!roomsNum || roomsNum < 1) return;
+
+    for(let i = 0; i < roomsNum; i++) {
+      self.removePeerFromRoom(roomIds[i], peerId);
+    }
+  }
+
+  /**
+   * Remove peer from all rooms
+   * @param peerId {string} Peer ID
+   */
+  public removePeerFromAllRooms(peerId : string) : void {
+    let self = this;
+    self._rooms.forEach((room: Room) => {
+      if(room.peers.has(peerId) || room.owner === peerId) self.removePeerFromRoom(room.id, peerId);
     });
   }
   // #endregion
@@ -810,6 +1089,12 @@ export class BitWarpServer {
         allowRoomUpdate: true,
         allowRoomList: true,
         allowCommands: true
+      },
+
+      // Default room grants
+      defaultRoomGrants: {
+        roomUpdates: Grants.Owner,
+        roomRemove: Grants.Owner
       }
     }
   }

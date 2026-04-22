@@ -15,7 +15,7 @@ import {
   ErrorHandler,
   HandshakePacketData,
   ITransport,
-  Logger,
+  Logger, Peer, Room,
   TransportErrorHandler
 } from '../shared';
 import { BitWarpServer } from './index';
@@ -40,6 +40,15 @@ interface EventMap {
   preconnect: [server : BitWarpServer, clientData : ClientConnection];
   disconnect: [server : BitWarpServer, connectionId : string]
   error : [server : BitWarpServer, error : ErrorHandler];
+
+  // Peers and Rooms
+  peerCreated: [server : BitWarpServer, peerId : string, peerData : Peer];
+  peerUpdated: [server : BitWarpServer, peerId : string, peerData : Peer];
+  peerRemoved: [server : BitWarpServer, peerId : string];
+  roomBeforeCreated : [server : BitWarpServer, room : Room];
+  roomCreated : [server : BitWarpServer, room : Room];
+  roomBeforeUpdated : [server : BitWarpServer, room : Room];
+  roomUpdated : [server : BitWarpServer, room : Room];
 
   // Handshake
   handshake : [server : BitWarpServer, connection : ClientConnection, handshakeData : HandshakePacketData];

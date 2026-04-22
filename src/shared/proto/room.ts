@@ -9,7 +9,8 @@
  * @updated               21.04.2026
  */
 /* Import required modules */
-import { Peer, PeerData } from "./peer";
+import { Peer, PeerData } from './peer';
+import { Grants } from './grants';
 
 /**
  * BitWarp Room
@@ -17,13 +18,17 @@ import { Peer, PeerData } from "./peer";
 export interface Room {
   // Basic room info
   id: string;
-  owner: Peer;
-  peers: Set<Peer> | Set<PeerData>;
+  owner: string;
+  peers: Set<string>;
   info: RoomInfo;
+  persistent : boolean;
 
   // Room access
   accessKey: string;
   needAccept: boolean;
+
+  // Room grants
+  grants : RoomGrants;
 }
 
 /**
@@ -31,7 +36,15 @@ export interface Room {
  */
 export interface RoomInfo {
   name: string;
-  description: string;
+  description ? : string;
+}
+
+/**
+ * Room Grants
+ */
+export interface RoomGrants {
+  roomUpdates : Grants,
+  roomRemove : Grants
 }
 
 /**

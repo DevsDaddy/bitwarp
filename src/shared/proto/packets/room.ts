@@ -11,6 +11,7 @@
 /* Import required modules */
 import { FlashBuffer, FlashBufferSchema, field } from 'flash-buffer';
 import { PacketType, HeaderEncoder, BasePacket, IPacketData } from '../packet';
+import { Room, RoomData } from '../room';
 
 /**
  * Room Action
@@ -30,7 +31,7 @@ export enum RoomAction {
  */
 export interface CreateRoomPayload {
   action: RoomAction.CREATE;
-
+  data : Room;
 }
 
 /**

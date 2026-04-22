@@ -32,6 +32,7 @@ export * from "./proto/packet";
 export * from "./proto/crypto";
 export * from "./proto/transport";
 export * from "./proto/room";
+export * from "./proto/grants";
 
 /* Export Protocol Packets */
 export * from "./proto/packets/handshake";
