@@ -238,8 +238,26 @@ class Application {
     let roomNameInput = document.getElementById("room_name") as HTMLInputElement;
     let roomDescInput = document.getElementById("room_description") as HTMLTextAreaElement;
     let createRoomBtn = document.getElementById("request_room_creation") as HTMLButtonElement;
-    if(!roomNameInput || !createRoomBtn || !roomDescInput) {
+    let roomPassInput = document.getElementById("room_create_pass") as HTMLInputElement;
+    let roomPrivateCheck = document.getElementById("private_space") as HTMLInputElement;
+    if(!roomNameInput || !createRoomBtn || !roomDescInput || !roomPassInput || !roomPrivateCheck) {
       app.onError.invoke(new ErrorHandler(`Failed to initialize welcome view. Not all form presented`));
+    }
+
+    // Input function
+    function onRoomNameInput(event: Event){
+      const target = event.target as HTMLInputElement;
+      createRoomBtn.disabled = (target.value.length < 1);
+    }
+
+    // Create room
+    function onCreatePressed(){
+      let roomName = roomNameInput.value;
+      let roomDesc = roomDescInput.value ?? "";
+      let roomPassword = roomPassInput.value ?? "";
+      let isPrivate = roomPrivateCheck.checked ?? false;
+
+      // TODO: Create room
     }
 
     // Setup form
@@ -247,7 +265,10 @@ class Application {
     roomDescInput.value = '';
     roomNameInput?.focus();
     createRoomBtn.disabled = true;
-
+    roomNameInput.removeEventListener("input", onRoomNameInput);
+    roomNameInput.addEventListener("input", onRoomNameInput);
+    createRoomBtn.removeEventListener("click", onCreatePressed);
+    createRoomBtn.addEventListener("click", onCreatePressed);
   }
   // #endregion
 

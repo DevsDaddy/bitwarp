@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1047
+ * @build                 1048
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               19.04.2026
+ * @updated               22.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
@@ -45,8 +45,7 @@ export enum PacketType {
  */
 export enum PacketFlag {
   None = 0,
-  AckRequired = 1 << 0,
-  Fragmented = 1 << 1
+  Fragmented = 1 << 0
 }
 
 /**
