@@ -12,6 +12,7 @@
 import { FlashBuffer, FlashBufferSchema, field } from 'flash-buffer';
 import { PacketType, HeaderEncoder, BasePacket, IPacketData } from '../packet';
 import { Room, RoomData } from '../room';
+import { PeerData } from '../peer';
 
 /**
  * Room Action
@@ -23,7 +24,8 @@ export enum RoomAction {
   CREATE = 3,
   DELETE = 4,
   UPDATE = 5,
-  ACCEPT = 6
+  ACCEPT = 6,
+  UPDATE_PEER = 7
 }
 
 /**
@@ -40,7 +42,6 @@ export interface CreateRoomPayload {
 export interface RemoveRoomPayload {
   action: RoomAction.DELETE;
   roomId: string;
-
 }
 
 /**
@@ -49,7 +50,7 @@ export interface RemoveRoomPayload {
 export interface UpdateRoomPayload {
   action: RoomAction.UPDATE;
   roomId: string;
-
+  data: Room;
 }
 
 /**
@@ -58,7 +59,6 @@ export interface UpdateRoomPayload {
 export interface JoinRoomPayload {
   action: RoomAction.JOIN;
   roomId: string;
-
 }
 
 /**
@@ -67,13 +67,12 @@ export interface JoinRoomPayload {
 export interface LeaveRoomPayload {
   action: RoomAction.LEAVE;
   roomId: string;
-
 }
 
 export interface AcceptRoomPayload {
   action: RoomAction.ACCEPT;
   roomId: string;
-
+  peerId: string;
 }
 
 /**
@@ -81,13 +80,24 @@ export interface AcceptRoomPayload {
  */
 export interface ListRoomsPayload {
   action: RoomAction.LIST;
+  offset: number;
+  rooms: RoomData[] | undefined;
+}
 
+/**
+ * Update room peer payload
+ */
+export interface UpdateRoomPeerPayload {
+  action: RoomAction.UPDATE_PEER;
+  roomId: string;
+  peerId: string;
+  peerData: PeerData;
 }
 
 /**
  * Room Payload
  */
-export type RoomPayload = CreateRoomPayload | RemoveRoomPayload | UpdateRoomPayload | JoinRoomPayload | LeaveRoomPayload | ListRoomsPayload | AcceptRoomPayload;
+export type RoomPayload = CreateRoomPayload | RemoveRoomPayload | UpdateRoomPayload | JoinRoomPayload | LeaveRoomPayload | ListRoomsPayload | AcceptRoomPayload | UpdateRoomPeerPayload;
 
 /**
  * Room Packet Data
@@ -110,11 +120,50 @@ export class RoomPacket extends BasePacket {
     buf.writeUint8(payload.action);
 
     switch (payload.action) {
-
+      case RoomAction.CREATE: {
+        buf.writeDynamic(payload.data);
+        break;
+      }
+      case RoomAction.DELETE: {
+        buf.writeString(payload.roomId, "utf-8", true);
+        break;
+      }
+      case RoomAction.UPDATE: {
+        buf.writeString(payload.roomId, "utf-8", true);
+        buf.writeDynamic(payload.data);
+        break;
+      }
+      case RoomAction.LIST: {
+        buf.writeInt32(payload.offset, true);
+        buf.writeDynamic(payload.rooms);
+        break;
+      }
+      case RoomAction.ACCEPT: {
+        buf.writeString(payload.roomId, "utf-8", true);
+        buf.writeString(payload.peerId, "utf-8", true);
+        break;
+      }
+      case RoomAction.JOIN: {
+        buf.writeString(payload.roomId, "utf-8", true);
+        break;
+      }
+      case RoomAction.LEAVE: {
+        buf.writeString(payload.roomId, "utf-8", true);
+        break;
+      }
+      case RoomAction.UPDATE_PEER: {
+        buf.writeString(payload.roomId, "utf-8", true);
+        buf.writeString(payload.peerId, "utf-8", true);
+        buf.writeDynamic(payload.peerData);
+        break;
+      }
       default: {
         throw new Error("Invalid action type for room packet.");
       }
     }
+
+    // Return buffer
+    return buf.toUint8Array();
   }
 
   /**
@@ -130,7 +179,43 @@ export class RoomPacket extends BasePacket {
     // Get action
     const action = buf.readUint8() as RoomAction;
     switch (action) {
-
+      case RoomAction.CREATE: {
+        let data : Room = buf.readDynamic();
+        return { data, action };
+      }
+      case RoomAction.DELETE: {
+        let roomId = buf.readString();
+        return {roomId, action};
+      }
+      case RoomAction.UPDATE: {
+        let roomId = buf.readString();
+        let roomData : Room = buf.readDynamic();
+        return {roomId, data: roomData, action};
+      }
+      case RoomAction.LIST: {
+        let offset = buf.readInt32(true);
+        let rooms : RoomData[] | undefined = buf.readDynamic();
+        return {offset, rooms, action};
+      }
+      case RoomAction.ACCEPT: {
+        let roomId = buf.readString();
+        let peerId = buf.readString();
+        return {roomId, peerId, action};
+      }
+      case RoomAction.JOIN: {
+        let roomId = buf.readString();
+        return {roomId, action};
+      }
+      case RoomAction.LEAVE: {
+        let roomId = buf.readString();
+        return {roomId, action};
+      }
+      case RoomAction.UPDATE_PEER: {
+        let roomId = buf.readString();
+        let peerId = buf.readString();
+        let peerData : PeerData = buf.readDynamic();
+        return {roomId, peerId, peerData, action};
+      }
       default: {
         throw new Error('Unknown action type for room packet.');
       }
