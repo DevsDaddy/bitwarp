@@ -3,15 +3,16 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1050
+ * @build                 1053
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               20.04.2026
+ * @updated               23.04.2026
  */
 /* Import required modules */
 import { FlashBuffer } from 'flash-buffer';
 import { IPacketData, BasePacket } from '../packet';
 import { PROTOCOL_VERSION } from '../../constants';
+import { Peer } from '../peer';
 
 /**
  * Handshake Step
@@ -38,6 +39,7 @@ export interface HandshakeResponse {
   step: HandshakeStep.RESPONSE;
   serverPublicKey: Uint8Array;
   protocolVersion: number;
+  peer: Peer;
 }
 
 /**
@@ -89,6 +91,7 @@ export class HandshakePacket extends BasePacket {
         buf.writeUint16(PROTOCOL_VERSION, true);
         buf.writeUint16(resp.serverPublicKey.byteLength, true);
         buf.writeBytes(resp.serverPublicKey);
+        buf.writeDynamic(resp.peer);
         break;
       }
       case HandshakeStep.FINISH: {
@@ -127,7 +130,8 @@ export class HandshakePacket extends BasePacket {
         const protocolVersion = buf.readUint16(true);
         const keyLen = buf.readUint16(true);
         const serverPublicKey = buf.readBytes(keyLen);
-        return { protocolVersion, step, serverPublicKey };
+        const peer = buf.readDynamic();
+        return { protocolVersion, step, serverPublicKey, peer };
       }
       case HandshakeStep.FINISH:
         const protocolVersion = buf.readUint16(true);

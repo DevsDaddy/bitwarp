@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1035
+ * @build                 1038
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               21.04.2026
+ * @updated               23.04.2026
  */
 /* Import required modules */
 import { Peer, PeerData } from './peer';
@@ -19,8 +19,9 @@ export interface Room {
   // Basic room info
   id: string;
   owner: string;
-  peers: Set<string>;
+  peers ? : Set<string>;
   info: RoomInfo;
+  data ? : any;
   persistent : boolean;
 
   // Room access
@@ -28,7 +29,7 @@ export interface Room {
   needAccept: boolean;
 
   // Room grants
-  grants : RoomGrants;
+  grants ? : RoomGrants;
 }
 
 /**
@@ -44,7 +45,8 @@ export interface RoomInfo {
  */
 export interface RoomGrants {
   roomUpdates : Grants,
-  roomRemove : Grants
+  roomRemove : Grants,
+  roomAccept : Grants,
 }
 
 /**

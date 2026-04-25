@@ -3,37 +3,51 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1109
+ * @build                 1112
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               21.04.2026
+ * @updated               23.04.2026
  */
 /* Import required modules */
 import {
   BaseEvent,
   BitWarpOptions,
   BWeaveCompression,
+  CommandPacket,
+  CommandPayload, CreateRoomPayload,
   CryptoProvider,
   CryptoProviderOptions,
   ErrorHandler,
   ErrorType,
+  Grants,
   HandshakeInit,
-  HandshakePacket, HandshakePacketData,
+  HandshakePacket,
+  HandshakePacketData,
   HandshakeStep,
   HeaderEncoder,
   IClientTransport,
   ICompressionProvider,
   Logger,
-  LogLevel, PacketAnalyzer,
+  LogLevel,
+  PacketAnalyzer,
   PacketType,
+  Peer,
+  PeerUpdatePacket,
   PERF_CONSTANTS,
   Performance,
+  PING_DELAY,
+  PingPacket,
   PROTOCOL_VERSION,
+  QuarkDashProvider,
+  Room,
+  RoomAction,
+  RoomData,
+  RoomGrants,
+  RoomInfo,
+  RoomPacket,
   TransportCloseCode,
   TransportErrorHandler,
-  UUID,
-  QuarkDashProvider, PING_DELAY,
-  PingPacket, RoomInfo, PeerUpdatePacket, CommandPayload, CommandPacket
+  UUID
 } from '../shared';
 import { WebSocketClientTransport } from './transport/websocket';
 import { FlashBuffer } from 'flash-buffer';
@@ -79,6 +93,11 @@ export class BitWarpClient {
   // Peer Events
   public readonly onPeerInfoUpdated : BaseEvent<any> = new BaseEvent<any>();
 
+  // Rooms Events
+  public readonly onRoomCreated : BaseEvent<RoomData> = new BaseEvent();
+  public readonly onRoomRemoved : BaseEvent<string> = new BaseEvent();
+  public readonly onRoomUpdated : BaseEvent<{ roomId : string, room: RoomData}> = new BaseEvent();
+
   // Client state
   private _isConnected = false;
   private _connectedTime : number = 0;
@@ -90,6 +109,10 @@ export class BitWarpClient {
   private _publicKey ? : Uint8Array;
   private _ping ? : number;
   private _pintTimer ? : any;
+
+  // Rooms and peers
+  private _peer : Peer | undefined = undefined;
+  private readonly _rooms : Map<string, RoomData> = new Map<string, RoomData>();
 
   // Command event
   private readonly onResponseReturned : BaseEvent<CommandPayload> = new BaseEvent<CommandPayload>();
@@ -121,6 +144,8 @@ export class BitWarpClient {
     this._handshakeStep = HandshakeStep.INIT;
     this._connectedTime = 0;
     this._ping = undefined;
+    this._rooms = new Map<string, RoomData>();
+    this._peer = undefined;
     clearInterval(this._pintTimer);
   }
 
@@ -172,6 +197,7 @@ export class BitWarpClient {
       self._connectedTime = Date.now();
       self._isConnected = true;
       self._ping = undefined;
+      self._peer = undefined;
       clearInterval(self._pintTimer);
 
       // Handshake
@@ -220,6 +246,7 @@ export class BitWarpClient {
     let self = this;
     self._isConnected = false;
     self._ping = undefined;
+    self._peer = undefined;
     clearInterval(self._pintTimer);
     self.unsubscribeAllTransport();
     self.transport.updateConnector(undefined);
@@ -417,6 +444,11 @@ export class BitWarpClient {
           if(!ciphertext) throw new Error("Failed to process handshake packet from server. Generated ciphertext is null");
         }
 
+        // Check peer in response
+        let peer : Peer | undefined = data.peer;
+        if(!peer) throw new Error(`Failed to process handshake. Received an empty peer info from server`);
+        self._peer = peer as Peer; // Setup peer
+
         // Create Packet
         self._handshakeStep = HandshakeStep.RESPONSE;
         let handshakePacket = HandshakePacket.encode({
@@ -520,6 +552,8 @@ export class BitWarpClient {
     let self = this;
     if(self._encryptProvider) PeerUpdatePacket.setCryptoProvider(self._encryptProvider);
     let peerData = PeerUpdatePacket.decode(message);
+    if(!self._peer) return Promise.reject(new Error(`Failed to process peer packet update. Peer is not defined at client`));
+    self._peer.info = peerData.payload.peerInfo; // Update peer info
     self.onPeerInfoUpdated.invoke(peerData.payload.peerInfo);
     Logger.info(`Peer info updated. New info: `, peerData.payload.peerInfo);
     return Promise.resolve();
@@ -611,9 +645,64 @@ export class BitWarpClient {
    * @param roomInfo {RoomInfo} Room info
    * @param accessKey {string} Access key
    * @param needAccept {boolean} Is need accept
+   * @param persistent {boolean} Is room persistent
+   * @param grants {RoomGrants} Room default grants
    */
-  public async createRoom(roomInfo : RoomInfo, accessKey : string = "", needAccept : boolean = false) : Promise<void> {
+  public async createRoom(roomInfo : RoomInfo, accessKey : string = "", needAccept : boolean = false, persistent : boolean = false, grants ? : RoomGrants) : Promise<RoomData> {
+    let self = this;
+    return new Promise(async (resolve, reject) => {
+      let responseTimeout : any;
 
+      // Check peer
+      let ownerPeer : Peer | undefined = self._peer;
+      if(!ownerPeer) {
+        reject(new Error("Owner peer info is not found"));
+        return;
+      }
+
+      // Check name
+      if(!roomInfo.name || roomInfo.name.length < 1) {
+        reject(new Error("Room name is required"));
+        return;
+      }
+
+      // Create packet
+      if(self._encryptProvider) RoomPacket.setCryptoProvider(self._encryptProvider);
+      let roomPacket = RoomPacket.encode({
+        action: RoomAction.CREATE,
+        data: {
+          id: "", // Generates at server
+          owner: ownerPeer.id,
+          info: roomInfo,
+          accessKey: accessKey,
+          needAccept: needAccept,
+          persistent: persistent,
+          grants: (grants) ? grants : undefined
+        }
+      });
+
+      // Send packet
+      Logger.info(`Trying to create room ${roomInfo.name}`);
+      await self.transport.send({ packetId: UUID.v4(), data: self.preparePacket(roomPacket)});
+
+      // Add timeout
+      responseTimeout = setTimeout(()=>{
+        reject(`Response timeout for room creation: ${roomPacket}`);
+        // @ts-ignore
+        clearTimeout(responseTimeout);
+      }, self.options.responseTimeout as number);
+
+      // Wait for response
+      function handleResponse(room : RoomData){
+        self._rooms.set(room.id, room);
+        self.onRoomCreated.removeListener(handleResponse);
+        resolve(room);
+      }
+
+      // Add event handlers
+      self.onRoomCreated.removeListener(handleResponse);
+      self.onRoomCreated.addListener(handleResponse);
+    });
   }
 
   /**
@@ -622,7 +711,58 @@ export class BitWarpClient {
    * @private
    */
   private async processRoomPacket(message : Uint8Array) : Promise<void> {
+    let self = this;
+    if(self._encryptProvider) RoomPacket.setCryptoProvider(self._encryptProvider);
+    let response = RoomPacket.decode(message);
 
+    // Switch response type
+    switch (response.payload.action) {
+      // Room created
+      case RoomAction.CREATE: {
+        self.onRoomCreated.invoke(response.payload.data);
+        Logger.success(`Room created: `, response.payload.data);
+        break;
+      }
+      // Room updated
+      case RoomAction.UPDATE: {
+
+        break;
+      }
+      // Room removed
+      case RoomAction.DELETE: {
+
+        break;
+      }
+      // Returns list of rooms
+      case RoomAction.LIST: {
+
+        break;
+      }
+      // Accepted join to room
+      case RoomAction.ACCEPT: {
+
+        break;
+      }
+      // Joined to room (one of peer)
+      case RoomAction.JOIN: {
+
+        break;
+      }
+      // Leaved room
+      case RoomAction.LEAVE: {
+
+        break;
+      }
+      // Updated peer info
+      case RoomAction.UPDATE_PEER: {
+
+        break;
+      }
+      default: {
+        self.onError.invoke(new ErrorHandler(`Failed to process room packet. Unknown action type received.`));
+        break;
+      }
+    }
   }
 
   /**

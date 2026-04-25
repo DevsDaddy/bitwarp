@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1100
+ * @build                 1103
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               21.04.2026
+ * @updated               23.04.2026
  */
 /* Import required modules */
 import {
@@ -43,9 +43,12 @@ import {
   PROTOCOL_VERSION,
   QuarkDashProvider,
   Room,
+  RoomAction,
   RoomData,
   RoomGrants,
-  RoomInfo, SHA512,
+  RoomInfo,
+  RoomPacket,
+  SHA512,
   TransportCloseCode,
   TransportErrorHandler,
   UUID
@@ -63,6 +66,7 @@ export * from "./router";
  * Client permissions
  */
 export interface ClientPermissions {
+  allowRoomPersistent: boolean;
   allowRoomCreate : boolean;
   allowRoomUpdate : boolean;
   allowRoomDelete : boolean;
@@ -121,11 +125,17 @@ export class BitWarpServer {
   public readonly onPeerCreated : BaseEvent<Peer> = new BaseEvent<Peer>();
   public readonly onPeerUpdated : BaseEvent<Peer> = new BaseEvent<Peer>();
   public readonly onPeerRemoved : BaseEvent<string> = new BaseEvent<string>();
+
   public readonly onBeforeRoomCreated : BaseEvent<Room> = new BaseEvent<Room>();
   public readonly onRoomCreated : BaseEvent<Room> = new BaseEvent<Room>();
   public readonly onBeforeRoomUpdated : BaseEvent<Room> = new BaseEvent<Room>();
   public readonly onRoomUpdated : BaseEvent<Room> = new BaseEvent<Room>();
+  public readonly onBeforeRoomRemoved : BaseEvent<Room> = new BaseEvent<Room>();
   public readonly onRoomRemoved : BaseEvent<string> = new BaseEvent<string>();
+
+  public readonly onPeerJoined : BaseEvent<{ room: Room, peer: Peer}> = new BaseEvent();
+  public readonly onPeerLeave : BaseEvent<{ room: Room, peer: Peer}> = new BaseEvent();
+
 
   // Server state
   private _isStarted = false;
@@ -502,11 +512,14 @@ export class BitWarpServer {
         }
 
         // Setup encryptor
+        let peer = self.getPeerByConnectionId(clientData.id);
+        if(!peer) return Promise.reject(`Failed to process handshake response. Peer not found.`);
         let serverPublic = (peerData.encryptor) ? await peerData.encryptor.getPublicKey() : new Uint8Array(0);
         let responsePacket = HandshakePacket.encode({
           protocolVersion: PROTOCOL_VERSION,
           step: HandshakeStep.RESPONSE,
-          serverPublicKey: serverPublic as Uint8Array
+          serverPublicKey: serverPublic as Uint8Array,
+          peer: peer as Peer
         });
 
         // Update Peer
@@ -616,6 +629,8 @@ export class BitWarpServer {
     peer.info = newData;
     await self.updatePeer(peer.id, peer, true);
 
+    // TODO: Update for all in rooms
+
     // Send peer data packet
     Logger.info(`Peer info updated for Peer ${peer.id}. New data:`, peer.info);
     let encoded = PeerUpdatePacket.encode({ peerInfo: peer.info });
@@ -654,11 +669,11 @@ export class BitWarpServer {
    */
   private async processCommandPacket(clientData : ClientData) : Promise<void> {
     let self = this;
-    if(!self.options.clientPermissions?.allowCommands) throw new Error(`Failed to execute command. Commands are disabled by server config.`);
+    if(!self.options.clientPermissions?.allowCommands) return Promise.reject(new Error(`Failed to execute command. Commands are disabled by server config.`));
 
     // Get Peer and Encryptor
     let peerData = self.getPeerByConnectionId(clientData.connection.id);
-    if(!peerData) throw new Error(`No peer data found for ${clientData.connection.id}.`);
+    if(!peerData) return Promise.reject(new Error(`No peer data found for ${clientData.connection.id}.`));
     let encryptor = peerData?.encryptor;
     if(encryptor) CommandPacket.setCryptoProvider(encryptor);
 
@@ -720,8 +735,65 @@ export class BitWarpServer {
    * @private
    */
   private async processRoomPacket(clientData : ClientData) : Promise<void> {
+    let self = this;
 
-    return Promise.resolve();
+    // Get Peer and Encryptor
+    let peerData = self.getPeerByConnectionId(clientData.connection.id);
+    if(!peerData) return Promise.reject(new Error(`No peer data found for ${clientData.connection.id}.`));
+    let encryptor = peerData?.encryptor;
+    if(encryptor) RoomPacket.setCryptoProvider(encryptor);
+
+    // Unpack room packet
+    let roomPacket = RoomPacket.decode(clientData.data);
+    switch (roomPacket.payload.action){
+      case RoomAction.CREATE: {
+        // Check Grants
+        if(!self.options.clientPermissions?.allowRoomCreate) return Promise.reject(new Error(`Failed to create room. The server configuration disallow room creations by client.`));
+
+        // Create room
+        let roomData = roomPacket.payload.data;
+        let room = await self.createRoom(peerData.id, roomData.info, roomData.grants ?? self.options.defaultRoomGrants, roomData.accessKey, roomData.needAccept, roomData.persistent);
+
+        // Create response
+        let response = RoomPacket.encode({
+          action: RoomAction.CREATE,
+          data: room
+        });
+        await self.transport.send(self.preparePacket(response), clientData.connection)
+        return Promise.resolve();
+      }
+      case RoomAction.UPDATE: {
+
+        return Promise.resolve();
+      }
+      case RoomAction.DELETE: {
+
+        return Promise.resolve();
+      }
+      case RoomAction.LIST: {
+
+        return Promise.resolve();
+      }
+      case RoomAction.JOIN: {
+
+        return Promise.resolve();
+      }
+      case RoomAction.LEAVE: {
+
+        return Promise.resolve();
+      }
+      case RoomAction.ACCEPT: {
+
+        return Promise.resolve();
+      }
+      case RoomAction.UPDATE_PEER: {
+
+        return Promise.resolve();
+      }
+      default: {
+        return Promise.reject(new Error(`Failed to process room packet. Unknown action type received.`))
+      }
+    }
   }
 
   /**
@@ -869,6 +941,25 @@ export class BitWarpServer {
   }
 
   /**
+   * Return all rooms
+   * @returns {Map<string, Room>} Rooms list
+   */
+  public get rooms() {
+    return this._rooms;
+  }
+
+  /**
+   * Return all public rooms
+   * @returns {Map<string, Room>} Public rooms only
+   */
+  public get publicRooms() {
+    return new Map(
+      [...this.rooms.entries()]
+        .filter(([roomId, room]) => room.needAccept)
+    );
+  }
+
+  /**
    * Create new room instance
    * @param ownerId {string} Owner Peer ID. Empty if owner a server
    * @param info {RoomInfo} Room info
@@ -884,7 +975,17 @@ export class BitWarpServer {
     // Check owner id
     if(ownerId.length > 0) {
       let peer = self._peers.get(ownerId);
-      if(!peer) throw new Error(`Failed to create room. Owner ID ${ownerId} is not found at server.`);
+      if(!peer) return Promise.reject(new Error(`Failed to create room. Owner ID ${ownerId} is not found at server.`));
+    }
+
+    // Check room name
+    if(!info.name || info.name.length < 1) {
+      return Promise.reject(`Failed to create room. Room name is required.`);
+    }
+
+    // Check persistent allowed
+    if(persistent && !self.options.clientPermissions?.allowRoomPersistent){
+      return Promise.reject(new Error(`Failed to create persistent room. This options is disabled by server.`));
     }
 
     // Define unique room id
@@ -913,6 +1014,7 @@ export class BitWarpServer {
     // On room created
     self._rooms.set(roomId, room);
     let roomInstance = self._rooms.get(roomId) as Room;
+    Logger.success(`Room created with owner ${ownerId}. Room: `, roomInstance);
     await self.onRoomCreated.invokeAsync(roomInstance);
     await Router.invoke("roomCreated", self, roomInstance);
     return roomInstance;
@@ -934,18 +1036,23 @@ export class BitWarpServer {
 
     // Check room id
     if(roomId.length < 1) {
-      throw new Error(`Failed to update room. No room id is specified.`);
+      return Promise.reject(new Error(`Failed to update room. No room id is specified.`));
     }
 
     // Check owner id
     if(ownerId && ownerId.length > 0) {
       let peer = self._peers.get(ownerId);
-      if(!peer) throw new Error(`Failed to create room. Owner ID ${ownerId} is not found at server.`);
+      if(!peer) return Promise.reject(new Error(`Failed to create room. Owner ID ${ownerId} is not found at server.`));
+    }
+
+    // Check persistent allowed
+    if(persistent && !self.options.clientPermissions?.allowRoomPersistent){
+      return Promise.reject(new Error(`Failed to set persistent room. This options is disabled by server.`));
     }
 
     // Find room
     let room = self.getRoom(roomId);
-    if(!room) throw new Error(`Failed to update room. Room with ID ${roomId} is not found at server.`);
+    if(!room) return Promise.reject(new Error(`Failed to update room. Room with ID ${roomId} is not found at server.`));
 
     // Change room data
     if(ownerId) room.owner = ownerId;
@@ -963,32 +1070,88 @@ export class BitWarpServer {
     await Router.invoke("roomBeforeUpdated", self, room);
     self._rooms.set(roomId, room);
     let roomInstance = self._rooms.get(roomId) as Room;
+    Logger.success(`Room ${roomId} updated with owner ${ownerId}. Room: `, roomInstance);
     await self.onRoomUpdated.invokeAsync(roomInstance);
     await Router.invoke("roomUpdated", self, roomInstance);
     return roomInstance;
   }
 
-  public removeRoom() {
+  /**
+   * Remove room by ID
+   * @param roomId {string} room id
+   */
+  public async removeRoom(roomId : string) : Promise<void> {
+    let self = this;
+    let room = self.getRoom(roomId);
+    if(!room) throw new Error(`Failed to remove room ${roomId}. Room is not found at server.`);
+    await self.onBeforeRoomRemoved.invokeAsync(room);
+    await Router.invoke("roomBeforeRemoved", self, room);
+
+    // Clean up all peers (fire leave event)
+    let peers = self.getRoomPeers(roomId);
+
+
+    // Remove room
+    self._rooms.delete(roomId);
+    await self.onRoomRemoved.invokeAsync(roomId);
+    await Router.invoke("roomRemoved", self, roomId);
+    return Promise.resolve();
+  }
+
+  public async leaveRoom(roomId : string, peerId : string) : Promise<void> {
+    let self = this;
+
+    // Check room
+    let room = self.getRoom(roomId);
+    if(!room) throw new Error(`Failed to leave room ${roomId}. Room is not found at server.`);
+
+    // Check peer exists
+    let peer = self._peers.get(roomId);
+    if(!peer) throw new Error(`Failed to leave room ${roomId}. Peer ${peerId} is not found at server.`);
+
+
+
+
+  }
+
+  public async joinRoom(roomId : string, peerId : string) : Promise<void> {
+    let self = this;
+
+    // Check room
+    let room = self.getRoom(roomId);
+    if(!room) throw new Error(`Failed to join room ${roomId}. Room is not found at server.`);
+
+    // Check peer exists
+    let peer = self._peers.get(roomId);
+    if(!peer) throw new Error(`Failed to leave room ${roomId}. Peer ${peerId} is not found at server.`);
+
 
   }
 
   /**
-   * Return all rooms
-   * @returns {Map<string, Room>} Rooms list
+   * Get all room peers
+   * @param roomId {string} Room ID
+   * @param exclude {string[]} Exclude peers from final list
+   * @returns {Peer[]} Array of peers
    */
-  public get rooms() {
-    return this._rooms;
-  }
+  public getRoomPeers(roomId : string, exclude ? : string[]) : Peer[] {
+    let self = this;
+    let peers: Peer[] = [];
 
-  /**
-   * Return all public rooms
-   * @returns {Map<string, Room>} Public rooms only
-   */
-  public get publicRooms() {
-    return new Map(
-      [...this.rooms.entries()]
-        .filter(([roomId, room]) => room.needAccept)
-    );
+    // Get room
+    let room = self.getRoom(roomId);
+    if(!room) return [];
+
+    // Collect peers
+    if(!room.peers) return [];
+    room.peers.forEach(peerId => {
+      let inExclude = exclude && exclude.find(pid => pid === peerId);
+      if(self._peers.has(peerId) && !inExclude){
+        peers.push(self._peers.get(peerId) as Peer);
+      }
+    });
+
+    return peers;
   }
 
   /**
@@ -1000,7 +1163,7 @@ export class BitWarpServer {
     let self = this;
     let rooms : Room[] = [];
     self._rooms.forEach((room : Room) => {
-      if(room.peers.has(peerId) || room.owner === peerId) rooms.push(room);
+      if(room.peers && room.peers.has(peerId) || room.owner === peerId) rooms.push(room);
     });
 
     return rooms;
@@ -1027,8 +1190,8 @@ export class BitWarpServer {
     }
 
     // Remove peer from room
-    room.peers.delete(peerId);
-    if(room.peers.size < 1 && !room.persistent){
+    if(room.peers) room.peers.delete(peerId);
+    if(room.peers && room.peers.size < 1 && !room.persistent){
       // TODO: Destroy room
       return;
     }
@@ -1059,7 +1222,7 @@ export class BitWarpServer {
   public removePeerFromAllRooms(peerId : string) : void {
     let self = this;
     self._rooms.forEach((room: Room) => {
-      if(room.peers.has(peerId) || room.owner === peerId) self.removePeerFromRoom(room.id, peerId);
+      if(room.peers && room.peers.has(peerId) || room.owner === peerId) self.removePeerFromRoom(room.id, peerId);
     });
   }
   // #endregion
@@ -1084,6 +1247,7 @@ export class BitWarpServer {
 
       // Client permission
       clientPermissions : {
+        allowRoomPersistent: true,
         allowRoomCreate: true,
         allowRoomDelete: true,
         allowRoomUpdate: true,
@@ -1094,7 +1258,8 @@ export class BitWarpServer {
       // Default room grants
       defaultRoomGrants: {
         roomUpdates: Grants.Owner,
-        roomRemove: Grants.Owner
+        roomRemove: Grants.Owner,
+        roomAccept: Grants.Owner
       }
     }
   }

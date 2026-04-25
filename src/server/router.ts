@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1025
+ * @build                 1028
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               21.04.2026
+ * @updated               23.04.2026
  */
 
 import {
@@ -49,6 +49,8 @@ interface EventMap {
   roomCreated : [server : BitWarpServer, room : Room];
   roomBeforeUpdated : [server : BitWarpServer, room : Room];
   roomUpdated : [server : BitWarpServer, room : Room];
+  roomBeforeRemove : [server : BitWarpServer, room : Room];
+  roomRemoved : [server : BitWarpServer, roomId : string];
 
   // Handshake
   handshake : [server : BitWarpServer, connection : ClientConnection, handshakeData : HandshakePacketData];

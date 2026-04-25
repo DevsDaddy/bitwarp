@@ -3,10 +3,10 @@
  *
  * @author                Elijah Rastorguev
  * @version               1.0.0
- * @build                 1052
+ * @build                 1055
  * @git                   https://github.com/devsdaddy/bitwarp
  * @license               MIT
- * @updated               21.04.2026
+ * @updated               23.04.2026
  */
 /* Import required modules */
 import { Logger, BaseEvent, ErrorHandler, ErrorType } from '../../dist/';
@@ -145,9 +145,14 @@ class Application {
       roomInput.value = "";
       joinRoomBtn.disabled = true;
       createRoomBtn.disabled = true;
+
+      app.toggleLoader(true);
+      app.setLabel("loading_state", "Join room...");
       app.joinRoom(app, roomId, ()=>{
         Logger.success(`Room joined: ${roomId}`);
+
       }, error => {
+        app.toggleLoader(false);
         app.showToast("error", "Error", `Failed to join room: ${error?.message ?? "Unknown error"}`);
       });
     }
@@ -251,13 +256,26 @@ class Application {
     }
 
     // Create room
-    function onCreatePressed(){
+    async function onCreatePressed(){
       let roomName = roomNameInput.value;
       let roomDesc = roomDescInput.value ?? "";
       let roomPassword = roomPassInput.value ?? "";
       let isPrivate = roomPrivateCheck.checked ?? false;
 
-      // TODO: Create room
+      // Show loader
+      app.toggleLoader(true);
+      app.setLabel("loading_state", "Create room...");
+      try {
+        let room = await app.client.createRoom({
+          name: roomName,
+          description: roomDesc
+        }, roomPassword, isPrivate);
+        app.setLabel("loading_state", "Join room...");
+
+        // TODO: Switch to room join
+      }catch {
+        app.toggleLoader(false);
+      }
     }
 
     // Setup form
